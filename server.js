@@ -7,6 +7,7 @@ const { encryptPayload, decryptPayload } = require('./crypto-utils');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.set('trust proxy', 1);
 
 // Persistent database of user virtual keys mapped to their encrypted provider keys
 const KEYS_FILE = process.env.VERCEL
@@ -138,10 +139,11 @@ app.post('/api/register-keys', (req, res) => {
   };
   persistKeys();
 
+  const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : req.protocol);
   res.json({
     success: true,
     virtualKey: virtualKey,
-    endpoint: `${req.protocol}://${req.get('host')}/v1/chat/completions`
+    endpoint: `${proto}://${req.get('host')}/v1/chat/completions`
   });
 });
 
@@ -225,13 +227,19 @@ app.post('/v1/chat/completions', async (req, res) => {
     });
   }
 
+  const failureReasons = [];
+
   for (const c of candidates) {
     const provider = c.p;
     const modelName = c.m;
-    const pKey = userKeys[provider];
+    const pKey = (userKeys[provider] || '').trim();
     
     // Skip if user didn't provide this key or if it is currently cooling down
-    if (!pKey || isCoolingDown(pKey)) continue;
+    if (!pKey) continue;
+    if (isCoolingDown(pKey)) {
+      failureReasons.push(`${provider}: In cooldown for ${Math.ceil((cooldowns[pKey] - Date.now()) / 1000)}s`);
+      continue;
+    }
     
     const config = PROVIDER_ENDPOINTS[provider];
     if (!config) continue;
@@ -261,11 +269,18 @@ app.post('/v1/chat/completions', async (req, res) => {
 
           if (apiRes.status === 429 || apiRes.status >= 500) {
             startCooldown(pKey, 60);
+            failureReasons.push(`${config.name || provider} (${modelName}): Rate limited (HTTP ${apiRes.status})`);
             if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
             continue;
           }
           if (!apiRes.ok) {
-            console.warn(`[Engine] ${provider} stream returned status ${apiRes.status}`);
+            let detail = `HTTP ${apiRes.status}`;
+            try {
+              const errBody = await apiRes.json();
+              detail += `: ${errBody.error?.message || errBody.message || JSON.stringify(errBody).slice(0, 100)}`;
+            } catch(e) {}
+            console.warn(`[Engine] ${provider} stream returned status ${detail}`);
+            failureReasons.push(`${config.name || provider} (${modelName}): ${detail}`);
             if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
             continue;
           }
@@ -313,11 +328,18 @@ app.post('/v1/chat/completions', async (req, res) => {
 
           if (apiRes.status === 429 || apiRes.status >= 500) {
             startCooldown(pKey, 60);
+            failureReasons.push(`${config.name || provider} (${modelName}): Rate limited (HTTP ${apiRes.status})`);
             if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
             continue;
           }
           if (!apiRes.ok) {
-            console.warn(`[Engine] Gemini stream returned status ${apiRes.status}`);
+            let detail = `HTTP ${apiRes.status}`;
+            try {
+              const errBody = await apiRes.json();
+              detail += `: ${errBody.error?.message || errBody.message || JSON.stringify(errBody).slice(0, 100)}`;
+            } catch(e) {}
+            console.warn(`[Engine] Gemini stream returned status ${detail}`);
+            failureReasons.push(`${config.name || provider} (${modelName}): ${detail}`);
             if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
             continue;
           }
@@ -702,7 +724,10 @@ app.post('/v1/chat/completions', async (req, res) => {
 
   // Fallback exhausted
   metrics.failedRequests++;
-  return res.status(503).json({ error: "All eligible models in your active key pool hit rate limits or failed. Engine exhausted." });
+  return res.status(503).json({
+    error: "All eligible models in your active key pool hit rate limits or failed. Engine exhausted.",
+    reasons: failureReasons.length > 0 ? failureReasons : ["No active keys matched this prompt category or all keys were empty."]
+  });
 });
 
 // Optional Master Passcode verification

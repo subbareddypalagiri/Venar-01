@@ -252,13 +252,17 @@ document.getElementById('btn-generate-api').addEventListener('click', async () =
     const data = await response.json();
 
     if (data.success) {
-      document.getElementById('val-endpoint').innerText = data.endpoint;
+      let finalEndpoint = data.endpoint;
+      if (window.location.protocol === 'https:' && finalEndpoint.startsWith('http://')) {
+        finalEndpoint = finalEndpoint.replace('http://', 'https://');
+      }
+      document.getElementById('val-endpoint').innerText = finalEndpoint;
       document.getElementById('val-token').innerText = data.virtualKey;
       generatedToken = data.virtualKey;
 
       // Persist generated virtual key and endpoint
       localStorage.setItem('venar_virtual_key', data.virtualKey);
-      localStorage.setItem('venar_endpoint', data.endpoint);
+      localStorage.setItem('venar_endpoint', finalEndpoint);
 
       const resultBox = document.getElementById('result-box');
       resultBox.classList.remove('hidden');
@@ -394,7 +398,15 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({ error: "Request failed" }));
-      outputBox.innerText = `[ROUTING EXHAUSTED] - Error: ${data.error || response.statusText}`;
+      let errText = `[ROUTING EXHAUSTED] - Error: ${data.error || response.statusText}\n\n🔍 Upstream Provider Diagnostics:`;
+      if (Array.isArray(data.reasons) && data.reasons.length > 0) {
+        data.reasons.forEach(r => {
+          errText += `\n❌ ${r}`;
+        });
+      } else {
+        errText += `\n❌ No providers responded. Check that your pasted API keys are valid and active.`;
+      }
+      outputBox.innerText = errText;
       outputBox.style.color = "#f87171";
       return;
     }
