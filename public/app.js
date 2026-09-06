@@ -256,6 +256,10 @@ document.getElementById('btn-generate-api').addEventListener('click', async () =
       document.getElementById('val-token').innerText = data.virtualKey;
       generatedToken = data.virtualKey;
 
+      // Persist generated virtual key and endpoint
+      localStorage.setItem('venar_virtual_key', data.virtualKey);
+      localStorage.setItem('venar_endpoint', data.endpoint);
+
       const resultBox = document.getElementById('result-box');
       resultBox.classList.remove('hidden');
       resultBox.scrollIntoView({ behavior: 'smooth' });
@@ -269,6 +273,92 @@ document.getElementById('btn-generate-api').addEventListener('click', async () =
     btn.innerHTML = `<span class="btn-icon">⚡</span> COMPILE ULTIMATE MERGED API`;
   }
 });
+
+// Auto-Save and Restore Keys & State from localStorage
+function saveKeysToStorage() {
+  const saved = {};
+  providers.forEach(p => {
+    const val = document.getElementById(`key-${p.id}`)?.value.trim() || '';
+    if (val) saved[p.id] = val;
+  });
+  localStorage.setItem('venar_saved_keys', JSON.stringify(saved));
+  localStorage.setItem('venar_preferred_order', JSON.stringify(preferredOrder));
+}
+
+function restoreSavedState() {
+  try {
+    // 1. Restore input keys
+    const savedKeys = JSON.parse(localStorage.getItem('venar_saved_keys') || '{}');
+    Object.entries(savedKeys).forEach(([pid, val]) => {
+      const input = document.getElementById(`key-${pid}`);
+      if (input) input.value = val;
+    });
+
+    // 2. Restore preferred order
+    const savedOrder = JSON.parse(localStorage.getItem('venar_preferred_order') || '[]');
+    if (Array.isArray(savedOrder)) {
+      savedOrder.forEach(id => {
+        if (!preferredOrder.includes(id)) togglePriority(id);
+      });
+    }
+
+    // 3. Restore generated token & result box
+    const savedToken = localStorage.getItem('venar_virtual_key');
+    const savedEndpoint = localStorage.getItem('venar_endpoint');
+    if (savedToken) {
+      generatedToken = savedToken;
+      const tokEl = document.getElementById('val-token');
+      const endEl = document.getElementById('val-endpoint');
+      if (tokEl) tokEl.innerText = savedToken;
+      if (endEl) endEl.innerText = savedEndpoint || `${window.location.origin}/v1/chat/completions`;
+
+      const resultBox = document.getElementById('result-box');
+      if (resultBox) resultBox.classList.remove('hidden');
+    }
+  } catch (e) {
+    console.warn('Could not restore state from storage:', e);
+  }
+}
+
+// Attach input change listener to all provider fields
+providers.forEach(p => {
+  const input = document.getElementById(`key-${p.id}`);
+  if (input) {
+    input.addEventListener('input', () => {
+      saveKeysToStorage();
+      updateLiveMetrics();
+    });
+  }
+});
+
+// Restore on startup
+restoreSavedState();
+
+// Clear All Keys helper
+window.clearAllSavedKeys = function() {
+  if (confirm("Are you sure you want to clear all entered API keys and reset your session?")) {
+    localStorage.removeItem('venar_saved_keys');
+    localStorage.removeItem('venar_preferred_order');
+    localStorage.removeItem('venar_virtual_key');
+    localStorage.removeItem('venar_endpoint');
+    providers.forEach(p => {
+      const input = document.getElementById(`key-${p.id}`);
+      if (input) input.value = '';
+    });
+    preferredOrder.length = 0;
+    providers.forEach(p => {
+      const b = document.getElementById(`prio-${p.id}`);
+      if (b) {
+        b.classList.remove('active');
+        b.innerText = "+ Priority";
+      }
+    });
+    generatedToken = "";
+    document.getElementById('result-box')?.classList.add('hidden');
+    updateLiveMetrics();
+    alert("All saved keys and session data cleared!");
+  }
+};
 
 // Clipboard Helper
 window.copyText = function(elementId) {
