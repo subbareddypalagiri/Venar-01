@@ -87,7 +87,8 @@ const MODEL_CATALOG = [
       { p: 'openrouter', m: 'anthropic/claude-sonnet-4.5', free: false, label: 'OpenRouter (Claude Sonnet 4.5)' },
       { p: 'openrouter', m: 'anthropic/claude-3-haiku', free: false, label: 'OpenRouter (Claude Haiku)' },
       { p: 'anthropic', m: 'claude-3-5-sonnet-20241022', free: false, label: 'Anthropic Direct' },
-      { p: 'openrouter', m: 'openrouter/auto', free: false, label: 'OpenRouter Auto Router' }
+      { p: 'openrouter', m: 'deepseek/deepseek-r1:free', free: true, label: 'OpenRouter Free DeepSeek R1' },
+      { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free', free: true, label: 'OpenRouter Free Llama 3.3' }
     ]
   },
   {
@@ -102,7 +103,9 @@ const MODEL_CATALOG = [
     routes: [
       { p: 'openrouter', m: 'anthropic/claude-fable-5.1', free: false, label: 'OpenRouter' },
       { p: 'openrouter', m: 'anthropic/claude-fable-5', free: false, label: 'OpenRouter' },
-      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter Fallback' }
+      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter Fallback' },
+      { p: 'openrouter', m: 'deepseek/deepseek-r1:free', free: true, label: 'OpenRouter Free DeepSeek R1' },
+      { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free', free: true, label: 'OpenRouter Free Llama 3.3' }
     ]
   },
   {
@@ -117,7 +120,9 @@ const MODEL_CATALOG = [
     routes: [
       { p: 'openrouter', m: 'anthropic/claude-opus-5', free: false, label: 'OpenRouter' },
       { p: 'openrouter', m: 'anthropic/claude-opus-4.5', free: false, label: 'OpenRouter' },
-      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter Fallback' }
+      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter Fallback' },
+      { p: 'openrouter', m: 'deepseek/deepseek-r1:free', free: true, label: 'OpenRouter Free DeepSeek R1' },
+      { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free', free: true, label: 'OpenRouter Free Llama 3.3' }
     ]
   },
   {
@@ -170,7 +175,7 @@ const MODEL_CATALOG = [
   },
   {
     id: 'gemini-2-0-flash',
-    name: 'Google Gemini 2.0 Flash',
+    name: 'Google Gemini 2.5 Flash',
     family: 'Google',
     badge: '🚀 Next-Gen Flash',
     context: '1M',
@@ -178,8 +183,10 @@ const MODEL_CATALOG = [
     tags: ['general', 'fast', 'free', 'popular', 'flagship'],
     desc: 'Real-time multi-modal with 1M context window and free 1,500 daily requests.',
     routes: [
-      { p: 'gemini', m: 'gemini-2.0-flash', free: true, label: 'Google AI Studio (Free 1500 RPD)' },
-      { p: 'openrouter', m: 'google/gemini-2.0-flash-exp:free', free: true, label: 'OpenRouter Free' }
+      { p: 'gemini', m: 'gemini-2.5-flash', free: true, label: 'Google AI Studio (Gemini 2.5 Flash)' },
+      { p: 'gemini', m: 'gemini-1.5-flash', free: true, label: 'Google AI Studio (Gemini 1.5 Flash)' },
+      { p: 'openrouter', m: 'google/gemini-2.0-flash-thinking-exp:free', free: true, label: 'OpenRouter Free' },
+      { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free', free: true, label: 'OpenRouter Free Fallback' }
     ]
   },
   {
@@ -193,7 +200,8 @@ const MODEL_CATALOG = [
     desc: 'Massive 2-million token context window for full codebase and book analysis.',
     routes: [
       { p: 'gemini', m: 'gemini-1.5-pro', free: true, label: 'Google AI Studio (Free)' },
-      { p: 'openrouter', m: 'google/gemini-pro-1.5:free', free: true, label: 'OpenRouter Free' }
+      { p: 'gemini', m: 'gemini-1.5-flash', free: true, label: 'Google AI Studio (Flash Fallback)' },
+      { p: 'openrouter', m: 'google/gemini-2.0-pro-exp-02-05:free', free: true, label: 'OpenRouter Free' }
     ]
   },
   {
@@ -308,42 +316,47 @@ const MODEL_CATALOG = [
 // Real, Active Model IDs for Fallback Routing
 const SYSTEM_MODELS = {
   general: [
-    { p: 'openrouter', m: 'google/gemini-2.0-flash-exp:free' },
+    { p: 'gemini', m: 'gemini-2.5-flash' },
+    { p: 'gemini', m: 'gemini-1.5-flash' },
+    { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free' },
+    { p: 'openrouter', m: 'deepseek/deepseek-chat:free' },
+    { p: 'openrouter', m: 'deepseek/deepseek-r1:free' },
     { p: 'groq', m: 'llama-3.3-70b-versatile' },
     { p: 'cerebras', m: 'llama-3.3-70b' },
-    { p: 'gemini', m: 'gemini-2.0-flash' },
     { p: 'openai', m: 'gpt-4o-mini' },
-    { p: 'openrouter', m: 'meta-llama/llama-3-8b-instruct:free' },
+    { p: 'openrouter', m: 'qwen/qwen-2.5-coder-32b-instruct:free' },
+    { p: 'openrouter', m: 'meta-llama/llama-3.1-8b-instruct:free' },
     { p: 'groq', m: 'llama-3.1-8b-instant' },
-    { p: 'together', m: 'meta-llama/Llama-3-8b-chat-hf' },
+    { p: 'together', m: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo' },
     { p: 'siliconflow', m: 'Qwen/Qwen2.5-7B-Instruct' },
-    { p: 'huggingface', m: 'meta-llama/Meta-Llama-3-8B-Instruct' },
+    { p: 'huggingface', m: 'meta-llama/Llama-3.1-8B-Instruct' },
     { p: 'mistral', m: 'open-mistral-7b' },
-    { p: 'deepinfra', m: 'meta-llama/Meta-Llama-3-8B-Instruct' },
+    { p: 'deepinfra', m: 'meta-llama/Meta-Llama-3.1-8B-Instruct' },
     { p: 'fireworks', m: 'accounts/fireworks/models/llama-v3p1-8b-instruct' },
-    { p: 'novita', m: 'meta-llama/llama-3-8b-instruct' },
-    { p: 'nvidia', m: 'meta/llama3-8b-instruct' },
+    { p: 'novita', m: 'meta-llama/llama-3.1-8b-instruct' },
+    { p: 'nvidia', m: 'meta/llama-3.1-8b-instruct' },
     { p: 'cohere', m: 'command-r' }
   ],
   coding: [
+    { p: 'openrouter', m: 'qwen/qwen-2.5-coder-32b-instruct:free' },
+    { p: 'openrouter', m: 'deepseek/deepseek-r1:free' },
+    { p: 'gemini', m: 'gemini-2.5-flash' },
+    { p: 'gemini', m: 'gemini-1.5-flash' },
     { p: 'groq', m: 'llama-3.3-70b-versatile' },
     { p: 'cerebras', m: 'llama-3.3-70b' },
-    { p: 'gemini', m: 'gemini-2.0-flash' },
     { p: 'openai', m: 'gpt-4o-mini' },
-    { p: 'openrouter', m: 'qwen/qwen-2.5-coder-32b-instruct:free' },
     { p: 'together', m: 'Qwen/Qwen2.5-72B-Instruct' },
-    { p: 'deepinfra', m: 'Qwen/Qwen2.5-72B-Instruct' },
     { p: 'siliconflow', m: 'deepseek-ai/DeepSeek-Coder-V2-Instruct' },
     { p: 'huggingface', m: 'Qwen/Qwen2.5-Coder-32B-Instruct' }
   ],
   reasoning: [
-    { p: 'gemini', m: 'gemini-2.0-flash' },
+    { p: 'openrouter', m: 'deepseek/deepseek-r1:free' },
+    { p: 'gemini', m: 'gemini-2.5-flash' },
+    { p: 'gemini', m: 'gemini-1.5-flash' },
     { p: 'groq', m: 'llama-3.3-70b-versatile' },
     { p: 'cerebras', m: 'llama-3.3-70b' },
     { p: 'openai', m: 'gpt-4o-mini' },
-    { p: 'openrouter', m: 'deepseek/deepseek-r1:free' },
-    { p: 'together', m: 'meta-llama/Llama-3-70b-chat-hf' },
-    { p: 'deepinfra', m: 'meta-llama/Meta-Llama-3-70B-Instruct' },
+    { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free' },
     { p: 'mistral', m: 'mistral-large-latest' },
     { p: 'anthropic', m: 'claude-3-5-haiku-20241022' }
   ]
@@ -400,14 +413,22 @@ app.post('/api/verify-provider-key', async (req, res) => {
   const startTime = Date.now();
   try {
     if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
-      const r = await fetch(url, {
+      let r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${cleanKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
       });
+      let verifiedModel = 'gemini-2.5-flash';
+      if (!r.ok) {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
+        });
+        verifiedModel = 'gemini-1.5-flash';
+      }
       const latencyMs = Date.now() - startTime;
-      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: 'gemini-2.0-flash' });
+      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: verifiedModel });
       const err = await r.json().catch(() => ({}));
       return res.status(400).json({ valid: false, error: err.error?.message || `HTTP ${r.status}` });
     }
@@ -427,11 +448,11 @@ app.post('/api/verify-provider-key', async (req, res) => {
     if (config.type === 'openai') {
       let testModel = 'llama-3.1-8b-instant';
       if (provider === 'cerebras') testModel = 'llama3.1-8b';
-      else if (provider === 'openrouter') testModel = 'google/gemini-2.0-flash-exp:free';
+      else if (provider === 'openrouter') testModel = 'meta-llama/llama-3.3-70b-instruct:free';
       else if (provider === 'openai') testModel = 'gpt-4o-mini';
-      else if (provider === 'together') testModel = 'meta-llama/Llama-3-8b-chat-hf';
+      else if (provider === 'together') testModel = 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo';
       else if (provider === 'siliconflow') testModel = 'Qwen/Qwen2.5-7B-Instruct';
-      else if (provider === 'deepinfra') testModel = 'meta-llama/Meta-Llama-3-8B-Instruct';
+      else if (provider === 'deepinfra') testModel = 'meta-llama/Meta-Llama-3.1-8B-Instruct';
       else if (provider === 'mistral') testModel = 'open-mistral-7b';
 
       const r = await fetch(config.url, {
@@ -597,10 +618,13 @@ app.post('/v1/chat/completions', async (req, res) => {
     });
   }
 
-  const { messages, model: requestedModel, stream = false } = req.body;
+  const { messages, model: requestedModel, stream = false, max_tokens, temperature } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Invalid request. Messages array required." });
   }
+
+  const effectiveMaxTokens = parseInt(max_tokens) || 2048;
+  const effectiveTemperature = typeof temperature === 'number' ? temperature : 0.7;
 
   // Route selection: Check if a specific catalog model was requested
   let candidates = [];
@@ -679,7 +703,15 @@ app.post('/v1/chat/completions', async (req, res) => {
       if (stream) {
         // 1. OpenAI-compatible Streaming Passthrough
         if (config.type === 'openai') {
-          const apiRes = await fetch(config.url, {
+          let payloadBody = {
+            model: modelName,
+            messages,
+            stream: true,
+            max_tokens: effectiveMaxTokens,
+            temperature: effectiveTemperature
+          };
+
+          let apiRes = await fetch(config.url, {
             method: 'POST',
             headers: { 
               'Authorization': `Bearer ${pKey}`, 
@@ -687,8 +719,35 @@ app.post('/v1/chat/completions', async (req, res) => {
               'HTTP-Referer': 'https://venar.ai',
               'X-Title': 'Venar Gateway'
             },
-            body: JSON.stringify({ model: modelName, messages, stream: true })
+            body: JSON.stringify(payloadBody)
           });
+
+          // OpenRouter Adaptive Token Budget Recovery:
+          // If OpenRouter returns 402 because credit balance is low, auto-retry with affordable token budget!
+          if (apiRes.status === 402 && provider === 'openrouter') {
+            let errDetail = '';
+            try {
+              const errBody = await apiRes.clone().json();
+              errDetail = errBody?.error?.message || errBody?.message || '';
+            } catch(e) {}
+
+            const affordMatch = errDetail.match(/can only afford (\d+)/i);
+            if (affordMatch && parseInt(affordMatch[1]) >= 50) {
+              const affordableTokens = Math.max(50, Math.floor(parseInt(affordMatch[1]) * 0.95));
+              console.log(`[Engine] OpenRouter credit constraint for ${modelName}. Auto-retrying with affordable budget (${affordableTokens} tokens)...`);
+              payloadBody.max_tokens = affordableTokens;
+              apiRes = await fetch(config.url, {
+                method: 'POST',
+                headers: { 
+                  'Authorization': `Bearer ${pKey}`, 
+                  'Content-Type': 'application/json',
+                  'HTTP-Referer': 'https://venar.ai',
+                  'X-Title': 'Venar Gateway'
+                },
+                body: JSON.stringify(payloadBody)
+              });
+            }
+          }
 
           if (apiRes.status === 429 || apiRes.status >= 500) {
             startCooldown(pKey, 60);
@@ -750,21 +809,53 @@ app.post('/v1/chat/completions', async (req, res) => {
 
         // 2. Gemini SSE Stream Conversion
         else if (config.type === 'gemini') {
-          const url = `${config.url}${modelName}:streamGenerateContent?alt=sse&key=${pKey}`;
-          const apiRes = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: messages.map(m => ({
-                role: m.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: m.content }]
-              }))
-            })
-          });
+          const geminiModelsToTry = [modelName];
+          if (modelName === 'gemini-2.0-flash' || modelName.includes('2.0-flash')) {
+            geminiModelsToTry.push('gemini-2.5-flash', 'gemini-1.5-flash');
+          } else if (modelName === 'gemini-1.5-pro') {
+            geminiModelsToTry.push('gemini-1.5-flash');
+          }
+
+          let apiRes = null;
+          let successfulGeminiModel = modelName;
+          let lastGeminiErr = null;
+
+          for (const gModel of geminiModelsToTry) {
+            const url = `${config.url}${gModel}:streamGenerateContent?alt=sse&key=${pKey}`;
+            const candidateRes = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: messages.map(m => ({
+                  role: m.role === 'assistant' ? 'model' : 'user',
+                  parts: [{ text: m.content }]
+                })),
+                generationConfig: {
+                  maxOutputTokens: effectiveMaxTokens,
+                  temperature: effectiveTemperature
+                }
+              })
+            });
+
+            if (candidateRes.status === 404 && geminiModelsToTry.length > 1) {
+              console.warn(`[Engine] Gemini model ${gModel} not available (404). Cascading to newer version...`);
+              lastGeminiErr = `HTTP 404 on ${gModel}`;
+              continue;
+            }
+            apiRes = candidateRes;
+            successfulGeminiModel = gModel;
+            break;
+          }
+
+          if (!apiRes) {
+            failureReasons.push(`${config.name || provider} (${modelName}): ${lastGeminiErr || 'All Gemini versions failed'}`);
+            if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
+            continue;
+          }
 
           if (apiRes.status === 429 || apiRes.status >= 500) {
             startCooldown(pKey, 60);
-            failureReasons.push(`${config.name || provider} (${modelName}): Rate limited (HTTP ${apiRes.status})`);
+            failureReasons.push(`${config.name || provider} (${successfulGeminiModel}): Rate limited (HTTP ${apiRes.status})`);
             if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
             continue;
           }
@@ -775,7 +866,7 @@ app.post('/v1/chat/completions', async (req, res) => {
               detail += `: ${errBody.error?.message || errBody.message || JSON.stringify(errBody).slice(0, 100)}`;
             } catch(e) {}
             console.warn(`[Engine] Gemini stream returned status ${detail}`);
-            failureReasons.push(`${config.name || provider} (${modelName}): ${detail}`);
+            failureReasons.push(`${config.name || provider} (${successfulGeminiModel}): ${detail}`);
             if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
             continue;
           }
@@ -785,7 +876,7 @@ app.post('/v1/chat/completions', async (req, res) => {
           res.setHeader('Connection', 'keep-alive');
           res.setHeader('X-Accel-Buffering', 'no');
           res.setHeader('X-Venar-Provider', provider);
-          res.setHeader('X-Venar-Model', modelName);
+          res.setHeader('X-Venar-Model', successfulGeminiModel);
           if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
 
           const reader = apiRes.body.getReader();
@@ -813,7 +904,7 @@ app.post('/v1/chat/completions', async (req, res) => {
                     id: `chatcmpl-${streamId}`,
                     object: "chat.completion.chunk",
                     created: Math.floor(Date.now() / 1000),
-                    model: `gemini/${modelName}`,
+                    model: `gemini/${successfulGeminiModel}`,
                     choices: [{ index: 0, delta: { content: text }, finish_reason: null }]
                   };
                   res.write(`data: ${JSON.stringify(chunk)}\n\n`);
@@ -835,7 +926,7 @@ app.post('/v1/chat/completions', async (req, res) => {
           res.write(`data: ${JSON.stringify({
             venar_telemetry: {
               provider,
-              model: modelName,
+              model: successfulGeminiModel,
               is_fallback: !!c.isFallback,
               latency_ms: latency
             }
@@ -859,7 +950,7 @@ app.post('/v1/chat/completions', async (req, res) => {
             },
             body: JSON.stringify({
               model: modelName,
-              max_tokens: 1024,
+              max_tokens: effectiveMaxTokens,
               stream: true,
               ...(systemMsg ? { system: systemMsg.content } : {}),
               messages: nonSystemMsgs.map(m => ({ role: m.role, content: m.content }))
@@ -959,7 +1050,8 @@ app.post('/v1/chat/completions', async (req, res) => {
               model: modelName,
               message: lastMsg,
               chat_history: history,
-              stream: true
+              stream: true,
+              max_tokens: effectiveMaxTokens
             })
           });
 
@@ -1046,7 +1138,14 @@ app.post('/v1/chat/completions', async (req, res) => {
 
       // 1. OpenAI-compatible standard spec
       if (config.type === 'openai') {
-        const apiRes = await fetch(config.url, {
+        let payloadBody = {
+          model: modelName,
+          messages,
+          max_tokens: effectiveMaxTokens,
+          temperature: effectiveTemperature
+        };
+
+        let apiRes = await fetch(config.url, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${pKey}`, 
@@ -1054,16 +1153,49 @@ app.post('/v1/chat/completions', async (req, res) => {
             'HTTP-Referer': 'https://venar.ai',
             'X-Title': 'Venar Gateway'
           },
-          body: JSON.stringify({ model: modelName, messages })
+          body: JSON.stringify(payloadBody)
         });
+
+        // OpenRouter Adaptive Token Budget Recovery
+        if (apiRes.status === 402 && provider === 'openrouter') {
+          let errDetail = '';
+          try {
+            const errBody = await apiRes.clone().json();
+            errDetail = errBody?.error?.message || errBody?.message || '';
+          } catch(e) {}
+
+          const affordMatch = errDetail.match(/can only afford (\d+)/i);
+          if (affordMatch && parseInt(affordMatch[1]) >= 50) {
+            const affordableTokens = Math.max(50, Math.floor(parseInt(affordMatch[1]) * 0.95));
+            console.log(`[Engine] OpenRouter credit constraint for ${modelName}. Auto-retrying with affordable budget (${affordableTokens} tokens)...`);
+            payloadBody.max_tokens = affordableTokens;
+            apiRes = await fetch(config.url, {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${pKey}`, 
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://venar.ai',
+                'X-Title': 'Venar Gateway'
+              },
+              body: JSON.stringify(payloadBody)
+            });
+          }
+        }
 
         if (apiRes.status === 429 || apiRes.status >= 500) { 
           startCooldown(pKey, 60); 
+          failureReasons.push(`${config.name || provider} (${modelName}): Rate limited (HTTP ${apiRes.status})`);
           if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
           continue; 
         }
         if (!apiRes.ok) {
-          console.warn(`[Engine] ${provider} responded with status ${apiRes.status}`);
+          let detail = `HTTP ${apiRes.status}`;
+          try {
+            const errBody = await apiRes.json();
+            detail += `: ${errBody.error?.message || errBody.message || JSON.stringify(errBody).slice(0, 100)}`;
+          } catch(e) {}
+          console.warn(`[Engine] ${provider} responded with status ${detail}`);
+          failureReasons.push(`${config.name || provider} (${modelName}): ${detail}`);
           if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
           continue; 
         }
@@ -1073,25 +1205,62 @@ app.post('/v1/chat/completions', async (req, res) => {
       } 
       // 2. Google Gemini native spec
       else if (config.type === 'gemini') {
-        const url = `${config.url}${modelName}:generateContent?key=${pKey}`;
-        const apiRes = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: messages.map(m => ({
-              role: m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.content }]
-            }))
-          })
-        });
+        const geminiModelsToTry = [modelName];
+        if (modelName === 'gemini-2.0-flash' || modelName.includes('2.0-flash')) {
+          geminiModelsToTry.push('gemini-2.5-flash', 'gemini-1.5-flash');
+        } else if (modelName === 'gemini-1.5-pro') {
+          geminiModelsToTry.push('gemini-1.5-flash');
+        }
+
+        let apiRes = null;
+        let successfulGeminiModel = modelName;
+
+        for (const gModel of geminiModelsToTry) {
+          const url = `${config.url}${gModel}:generateContent?key=${pKey}`;
+          const candidateRes = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: messages.map(m => ({
+                role: m.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: m.content }]
+              })),
+              generationConfig: {
+                maxOutputTokens: effectiveMaxTokens,
+                temperature: effectiveTemperature
+              }
+            })
+          });
+
+          if (candidateRes.status === 404 && geminiModelsToTry.length > 1) {
+            console.warn(`[Engine] Gemini model ${gModel} not available (404). Cascading to newer version...`);
+            continue;
+          }
+          apiRes = candidateRes;
+          successfulGeminiModel = gModel;
+          break;
+        }
+
+        if (!apiRes) {
+          failureReasons.push(`${config.name || provider} (${modelName}): All Gemini model versions failed`);
+          if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
+          continue;
+        }
 
         if (apiRes.status === 429 || apiRes.status >= 500) { 
           startCooldown(pKey, 60); 
+          failureReasons.push(`${config.name || provider} (${successfulGeminiModel}): Rate limited (HTTP ${apiRes.status})`);
           if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
           continue; 
         }
         if (!apiRes.ok) {
-          console.warn(`[Engine] Gemini responded with status ${apiRes.status}`);
+          let detail = `HTTP ${apiRes.status}`;
+          try {
+            const errBody = await apiRes.json();
+            detail += `: ${errBody.error?.message || errBody.message || JSON.stringify(errBody).slice(0, 100)}`;
+          } catch(e) {}
+          console.warn(`[Engine] Gemini responded with status ${detail}`);
+          failureReasons.push(`${config.name || provider} (${successfulGeminiModel}): ${detail}`);
           if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
           continue; 
         }
@@ -1113,21 +1282,28 @@ app.post('/v1/chat/completions', async (req, res) => {
           },
           body: JSON.stringify({
             model: modelName,
-            max_tokens: 1024,
+            max_tokens: effectiveMaxTokens,
             ...(systemMsg ? { system: systemMsg.content } : {}),
             messages: nonSystemMsgs.map(m => ({ role: m.role, content: m.content }))
           })
         });
 
         if (apiRes.status === 429 || apiRes.status >= 500) {
-          startCooldown(pKey, 60);
+          startCooldown(pKey, 60); 
+          failureReasons.push(`${config.name || provider} (${modelName}): Rate limited (HTTP ${apiRes.status})`);
           if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
-          continue;
+          continue; 
         }
         if (!apiRes.ok) {
-          console.warn(`[Engine] Anthropic responded with status ${apiRes.status}`);
+          let detail = `HTTP ${apiRes.status}`;
+          try {
+            const errBody = await apiRes.json();
+            detail += `: ${errBody.error?.message || errBody.message || JSON.stringify(errBody).slice(0, 100)}`;
+          } catch(e) {}
+          console.warn(`[Engine] Anthropic responded with status ${detail}`);
+          failureReasons.push(`${config.name || provider} (${modelName}): ${detail}`);
           if (metrics.providerStats[provider]) metrics.providerStats[provider].failures++;
-          continue;
+          continue; 
         }
 
         const data = await apiRes.json();
@@ -1150,7 +1326,8 @@ app.post('/v1/chat/completions', async (req, res) => {
           body: JSON.stringify({
             model: modelName,
             message: lastMsg,
-            chat_history: history
+            chat_history: history,
+            max_tokens: effectiveMaxTokens
           })
         });
 
