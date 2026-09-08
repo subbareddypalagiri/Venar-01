@@ -8,7 +8,9 @@ Whenever a rate limit (HTTP 429) or downtime strikes, VENAR seamlessly and silen
 
 ## ⚡ Key Architecture Features
 
-- **🚀 Real-Time SSE Streaming:** Full Server-Sent Events (`stream: true`) support for Cursor, VS Code Cline, LibreChat, and the official OpenAI Python/Node SDKs.
+- **👑 Experiential-Grade Universal Model Catalog:** Discover and call 13+ flagship frontier models (Claude 3.5 Sonnet, DeepSeek R1, GPT-4o, Qwen 2.5 Coder 32B, Gemini 2.0 Flash) with visual multi-cloud fallback pipelines.
+- **🐙 GitHub Models Integration:** Unlock free Claude 3.5 Sonnet, GPT-4o, and Llama 3.3 using your standard GitHub Personal Access Token (`ghp_...`).
+- **🚀 Real-Time SSE Streaming:** Full Server-Sent Events (`stream: true`) support for Cursor, VS Code Cline, LibreChat, and official OpenAI Python/Node SDKs.
 - **🔐 AES-256-GCM Military Encryption:** Stored API keys are encrypted on disk with random IV and authentication tags. Plaintext keys are never stored.
 - **📊 Live Mission-Control Dashboard:** Real-time metrics tracking token volume, estimated dollars saved, provider health (🟢 Ready, 🟡 Cooldown), and latency.
 - **⭐ Drag & Drop Custom Priority:** Rank your preferred providers (e.g. prioritize Groq 70B before Cerebras or Gemini).
@@ -21,9 +23,9 @@ Whenever a rate limit (HTTP 429) or downtime strikes, VENAR seamlessly and silen
 
 | Category | Providers |
 |---|---|
+| **Frontier & GitHub Models** | GitHub Models (Azure - Free Claude 3.5 Sonnet, GPT-4o), Anthropic Direct, OpenAI Direct |
 | **Direct Fast Inference** | Groq Cloud, Google AI Studio (Gemini), Cerebras, Cohere, Mistral AI, AI21 Labs, NVIDIA NIM |
-| **Open-Source Model Hubs** | OpenRouter, Hugging Face Router, Together AI, SiliconFlow, DeepInfra, Novita AI, Fireworks AI |
-| **Frontier Models** | OpenAI (GPT-4o-mini), Anthropic (Claude 3.5 Haiku), Perplexity |
+| **Open-Source Model Hubs** | OpenRouter, Hugging Face Router, Together AI, SiliconFlow, DeepInfra, Novita AI, Fireworks AI, Perplexity |
 
 ---
 
