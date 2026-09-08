@@ -983,6 +983,7 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
     routedProvider = response.headers.get('x-venar-provider') || '';
     const headerModel = response.headers.get('x-venar-model');
     if (headerModel) routedModel = headerModel;
+    let isFallback = response.headers.get('x-venar-fallback') === 'true';
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: "Request failed" }));
@@ -1026,6 +1027,7 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
               if (data.venar_telemetry) {
                 if (data.venar_telemetry.provider) routedProvider = data.venar_telemetry.provider;
                 if (data.venar_telemetry.model) routedModel = data.venar_telemetry.model;
+                if (data.venar_telemetry.is_fallback) isFallback = true;
               }
 
               const deltaText = data.choices?.[0]?.delta?.content;
@@ -1048,6 +1050,8 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
       accumulatedText = jsonRes.choices?.[0]?.message?.content || "";
       streamTokenCount = Math.ceil(accumulatedText.length / 4);
       if (jsonRes.venar_telemetry?.provider) routedProvider = jsonRes.venar_telemetry.provider;
+      if (jsonRes.venar_telemetry?.model) routedModel = jsonRes.venar_telemetry.model;
+      if (jsonRes.venar_telemetry?.is_fallback) isFallback = true;
       document.getElementById(bubbleId).innerHTML = formatMarkdown(accumulatedText);
     }
 
@@ -1059,7 +1063,11 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
     const tokensPerSec = totalDurationMs > 0 ? Math.round((streamTokenCount / (totalDurationMs / 1000))) : 0;
 
     if (telPulse) telPulse.className = 'telemetry-pulse';
-    if (telStatus) telStatus.innerText = `🟢 Success • Completed via ${routedProvider || 'Venar Gateway'}`;
+    if (isFallback) {
+      telStatus.innerHTML = `<span style="background: rgba(245, 158, 11, 0.2); color: #d97706; padding: 2px 8px; border-radius: 4px; font-weight: 700; margin-right: 6px;">⚡ Auto-Cascaded</span> Routed via <strong>${routedProvider}</strong> (${routedModel})`;
+    } else {
+      telStatus.innerText = `🟢 Success • Completed via ${routedProvider || 'Venar Gateway'} (${routedModel})`;
+    }
     if (telProvider) telProvider.innerText = `Provider: ${routedProvider || 'Active Route'}`;
     if (telLatency) telLatency.innerText = `Latency: ${totalDurationMs}ms`;
     if (telSpeed) telSpeed.innerText = `Speed: ~${tokensPerSec} t/s`;

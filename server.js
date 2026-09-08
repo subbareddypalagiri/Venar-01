@@ -83,8 +83,41 @@ const MODEL_CATALOG = [
     desc: 'Top-tier coding, system architecture, and nuanced reasoning.',
     routes: [
       { p: 'github', m: 'Claude-3.5-Sonnet', free: true, label: 'GitHub Models (Free PAT)' },
-      { p: 'openrouter', m: 'anthropic/claude-3.5-sonnet', free: false, label: 'OpenRouter' },
-      { p: 'anthropic', m: 'claude-3-5-sonnet-20241022', free: false, label: 'Anthropic Direct' }
+      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter (Claude Sonnet 4)' },
+      { p: 'openrouter', m: 'anthropic/claude-sonnet-4.5', free: false, label: 'OpenRouter (Claude Sonnet 4.5)' },
+      { p: 'openrouter', m: 'anthropic/claude-3-haiku', free: false, label: 'OpenRouter (Claude Haiku)' },
+      { p: 'anthropic', m: 'claude-3-5-sonnet-20241022', free: false, label: 'Anthropic Direct' },
+      { p: 'openrouter', m: 'openrouter/auto', free: false, label: 'OpenRouter Auto Router' }
+    ]
+  },
+  {
+    id: 'claude-fable-5',
+    name: 'Claude Fable 5.1',
+    family: 'Anthropic',
+    badge: '🔮 Frontier Creative',
+    context: '200K',
+    speed: '~90 t/s',
+    tags: ['general', 'reasoning', 'popular', 'flagship'],
+    desc: 'Anthropic next-gen creative architecture for hyper-expressive synthesis and system design.',
+    routes: [
+      { p: 'openrouter', m: 'anthropic/claude-fable-5.1', free: false, label: 'OpenRouter' },
+      { p: 'openrouter', m: 'anthropic/claude-fable-5', free: false, label: 'OpenRouter' },
+      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter Fallback' }
+    ]
+  },
+  {
+    id: 'claude-opus-5',
+    name: 'Claude Opus 5',
+    family: 'Anthropic',
+    badge: '👑 Deep Synthesis',
+    context: '200K',
+    speed: '~65 t/s',
+    tags: ['reasoning', 'coding', 'popular', 'flagship'],
+    desc: 'Unmatched complex logic, long-context reasoning, and software architecture.',
+    routes: [
+      { p: 'openrouter', m: 'anthropic/claude-opus-5', free: false, label: 'OpenRouter' },
+      { p: 'openrouter', m: 'anthropic/claude-opus-4.5', free: false, label: 'OpenRouter' },
+      { p: 'openrouter', m: 'anthropic/claude-sonnet-4', free: false, label: 'OpenRouter Fallback' }
     ]
   },
   {
@@ -219,7 +252,8 @@ const MODEL_CATALOG = [
     tags: ['fast', 'coding', 'free'],
     desc: 'Blazing fast responses with Claude 3 Opus-level coding performance.',
     routes: [
-      { p: 'openrouter', m: 'anthropic/claude-3.5-haiku', free: false, label: 'OpenRouter' },
+      { p: 'openrouter', m: 'anthropic/claude-3-5-haiku', free: false, label: 'OpenRouter' },
+      { p: 'openrouter', m: 'anthropic/claude-3-haiku', free: false, label: 'OpenRouter (Claude Haiku)' },
       { p: 'anthropic', m: 'claude-3-5-haiku-20241022', free: false, label: 'Anthropic Direct' }
     ]
   },
@@ -583,15 +617,30 @@ app.post('/v1/chat/completions', async (req, res) => {
     }
   }
 
-  // Fallback to intelligent prompt categorization if no specific model matched
+  // Universal Resilient Auto-Cascade:
+  // If specific model was requested, start with its primary routes, 
+  // THEN append intelligent category fallbacks so the gateway NEVER exhausts if any key is active!
+  const category = determineCategory(messages);
+  const categoryFallbacks = SYSTEM_MODELS[category] || SYSTEM_MODELS.general;
+  
   if (candidates.length === 0) {
-    const category = determineCategory(messages);
-    candidates = [...(SYSTEM_MODELS[category] || SYSTEM_MODELS.general)];
+    candidates = [...categoryFallbacks];
+  } else {
+    // Append category fallbacks as resilience safety net
+    categoryFallbacks.forEach(f => {
+      if (!candidates.some(c => c.p === f.p && c.m === f.m)) {
+        candidates.push({ p: f.p, m: f.m, isFallback: true });
+      }
+    });
   }
 
   // Apply custom preferred order if defined by user
   if (preferredOrder && preferredOrder.length > 0) {
     candidates.sort((a, b) => {
+      // Prioritize explicit catalog routes first before fallbacks
+      if (a.isFallback && !b.isFallback) return 1;
+      if (!a.isFallback && b.isFallback) return -1;
+
       const idxA = preferredOrder.indexOf(a.p);
       const idxB = preferredOrder.indexOf(b.p);
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
@@ -663,6 +712,9 @@ app.post('/v1/chat/completions', async (req, res) => {
           res.setHeader('Cache-Control', 'no-cache, no-transform');
           res.setHeader('Connection', 'keep-alive');
           res.setHeader('X-Accel-Buffering', 'no');
+          res.setHeader('X-Venar-Provider', provider);
+          res.setHeader('X-Venar-Model', modelName);
+          if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
 
           const reader = apiRes.body.getReader();
           let tokenCount = 0;
@@ -672,7 +724,6 @@ app.post('/v1/chat/completions', async (req, res) => {
             res.write(value);
             tokenCount += 4;
           }
-          res.end();
 
           // Record metrics
           metrics.successfulRequests++;
@@ -683,6 +734,17 @@ app.post('/v1/chat/completions', async (req, res) => {
           }
           metrics.totalTokensEstimated += tokenCount;
           metrics.totalCostSavedUSD += parseFloat(((tokenCount / 1000) * 0.003).toFixed(5));
+
+          // Emit end-of-stream cascade telemetry chunk
+          res.write(`data: ${JSON.stringify({
+            venar_telemetry: {
+              provider,
+              model: modelName,
+              is_fallback: !!c.isFallback,
+              latency_ms: latency
+            }
+          })}\n\n`);
+          res.end();
           return;
         }
 
@@ -722,6 +784,9 @@ app.post('/v1/chat/completions', async (req, res) => {
           res.setHeader('Cache-Control', 'no-cache, no-transform');
           res.setHeader('Connection', 'keep-alive');
           res.setHeader('X-Accel-Buffering', 'no');
+          res.setHeader('X-Venar-Provider', provider);
+          res.setHeader('X-Venar-Model', modelName);
+          if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
 
           const reader = apiRes.body.getReader();
           const decoder = new TextDecoder();
@@ -756,8 +821,6 @@ app.post('/v1/chat/completions', async (req, res) => {
               } catch (e) {}
             }
           }
-          res.write(`data: [DONE]\n\n`);
-          res.end();
 
           metrics.successfulRequests++;
           const latency = Date.now() - providerReqStart;
@@ -767,6 +830,18 @@ app.post('/v1/chat/completions', async (req, res) => {
           }
           metrics.totalTokensEstimated += tokenCount;
           metrics.totalCostSavedUSD += parseFloat(((tokenCount / 1000) * 0.003).toFixed(5));
+
+          // Emit end-of-stream cascade telemetry chunk
+          res.write(`data: ${JSON.stringify({
+            venar_telemetry: {
+              provider,
+              model: modelName,
+              is_fallback: !!c.isFallback,
+              latency_ms: latency
+            }
+          })}\n\n`);
+          res.write(`data: [DONE]\n\n`);
+          res.end();
           return;
         }
 
@@ -806,6 +881,9 @@ app.post('/v1/chat/completions', async (req, res) => {
           res.setHeader('Cache-Control', 'no-cache, no-transform');
           res.setHeader('Connection', 'keep-alive');
           res.setHeader('X-Accel-Buffering', 'no');
+          res.setHeader('X-Venar-Provider', provider);
+          res.setHeader('X-Venar-Model', modelName);
+          if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
 
           const reader = apiRes.body.getReader();
           const decoder = new TextDecoder();
@@ -839,8 +917,6 @@ app.post('/v1/chat/completions', async (req, res) => {
               } catch (e) {}
             }
           }
-          res.write(`data: [DONE]\n\n`);
-          res.end();
 
           metrics.successfulRequests++;
           const latency = Date.now() - providerReqStart;
@@ -850,6 +926,18 @@ app.post('/v1/chat/completions', async (req, res) => {
           }
           metrics.totalTokensEstimated += tokenCount;
           metrics.totalCostSavedUSD += parseFloat(((tokenCount / 1000) * 0.003).toFixed(5));
+
+          // Emit end-of-stream cascade telemetry chunk
+          res.write(`data: ${JSON.stringify({
+            venar_telemetry: {
+              provider,
+              model: modelName,
+              is_fallback: !!c.isFallback,
+              latency_ms: latency
+            }
+          })}\n\n`);
+          res.write(`data: [DONE]\n\n`);
+          res.end();
           return;
         }
 
@@ -890,6 +978,9 @@ app.post('/v1/chat/completions', async (req, res) => {
           res.setHeader('Cache-Control', 'no-cache, no-transform');
           res.setHeader('Connection', 'keep-alive');
           res.setHeader('X-Accel-Buffering', 'no');
+          res.setHeader('X-Venar-Provider', provider);
+          res.setHeader('X-Venar-Model', modelName);
+          if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
 
           const reader = apiRes.body.getReader();
           const decoder = new TextDecoder();
@@ -923,8 +1014,6 @@ app.post('/v1/chat/completions', async (req, res) => {
               } catch (e) {}
             }
           }
-          res.write(`data: [DONE]\n\n`);
-          res.end();
 
           metrics.successfulRequests++;
           const latency = Date.now() - providerReqStart;
@@ -934,6 +1023,18 @@ app.post('/v1/chat/completions', async (req, res) => {
           }
           metrics.totalTokensEstimated += tokenCount;
           metrics.totalCostSavedUSD += parseFloat(((tokenCount / 1000) * 0.003).toFixed(5));
+
+          // Emit end-of-stream cascade telemetry chunk
+          res.write(`data: ${JSON.stringify({
+            venar_telemetry: {
+              provider,
+              model: modelName,
+              is_fallback: !!c.isFallback,
+              latency_ms: latency
+            }
+          })}\n\n`);
+          res.write(`data: [DONE]\n\n`);
+          res.end();
           return;
         }
       }
@@ -1080,11 +1181,21 @@ app.post('/v1/chat/completions', async (req, res) => {
         metrics.totalTokensEstimated += tokenEst;
         metrics.totalCostSavedUSD += parseFloat(((tokenEst / 1000) * 0.003).toFixed(5));
 
+        res.setHeader('X-Venar-Provider', provider);
+        res.setHeader('X-Venar-Model', modelName);
+        if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
+
         return res.json({
           id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
           model: `${provider}/${modelName}`,
+          venar_telemetry: {
+            provider,
+            model: modelName,
+            is_fallback: !!c.isFallback,
+            latency_ms: latency
+          },
           choices: [{ index: 0, message: { role: "assistant", content: responseText }, finish_reason: "stop" }]
         });
       }
