@@ -59,7 +59,96 @@ function decryptPayload(record) {
   }
 }
 
+/**
+ * Serializes and encrypts user keys & preferences into a stateless, tamper-proof virtual key.
+ * Format: sk-merged-v2-<base64url(iv + tag + ciphertext)>
+ * @param {Object} rawKeys - Map of provider to API key
+ * @param {Array} preferredOrder - User provider ranking
+ * @returns {string} Stateless virtual API key
+ */
+function encodeStatelessKey(rawKeys, preferredOrder = []) {
+  const payload = {
+    k: rawKeys,
+    p: Array.isArray(preferredOrder) ? preferredOrder : [],
+    t: Date.now()
+  };
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  
+  const text = JSON.stringify(payload);
+  const ciphertext = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag(); // 16 bytes
+  
+  // Pack: iv (12 bytes) + tag (16 bytes) + ciphertext
+  const packed = Buffer.concat([iv, tag, ciphertext]);
+  return 'sk-merged-v2-' + packed.toString('base64url');
+}
+
+/**
+ * Decodes and decrypts a stateless virtual key into { keys, preferredOrder }.
+ * @param {string} token - Virtual API key string
+ * @returns {Object|null} { keys, preferredOrder } or null if invalid
+ */
+function decodeStatelessKey(token) {
+  if (!token || typeof token !== 'string') return null;
+  
+  // Strip 'Bearer ' if present
+  let cleanToken = token.trim();
+  if (cleanToken.startsWith('Bearer ')) cleanToken = cleanToken.slice(7).trim();
+
+  // Primary v2 format
+  if (cleanToken.startsWith('sk-merged-v2-')) {
+    try {
+      const raw = cleanToken.slice('sk-merged-v2-'.length);
+      const buf = Buffer.from(raw, 'base64url');
+      return decodeBuffer(buf);
+    } catch (err) {
+      console.error('[Security] Stateless token decode error:', err.message);
+      return null;
+    }
+  }
+
+  // Also check if sk-merged- carries a packed buffer
+  if (cleanToken.startsWith('sk-merged-') && cleanToken.length > 50) {
+    try {
+      const raw = cleanToken.slice('sk-merged-'.length);
+      const buf = Buffer.from(raw, 'base64url');
+      if (buf.length > 28) {
+        return decodeBuffer(buf);
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
+function decodeBuffer(buf) {
+  if (!buf || buf.length <= 28) return null; // 12 bytes IV + 16 bytes tag = 28 bytes minimum
+  try {
+    const key = getEncryptionKey();
+    const iv = buf.subarray(0, 12);
+    const tag = buf.subarray(12, 28);
+    const ciphertext = buf.subarray(28);
+
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(tag);
+    
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const data = JSON.parse(decrypted.toString('utf8'));
+    return {
+      keys: data.k || {},
+      preferredOrder: data.p || []
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
 module.exports = {
   encryptPayload,
-  decryptPayload
+  decryptPayload,
+  encodeStatelessKey,
+  decodeStatelessKey
 };
+

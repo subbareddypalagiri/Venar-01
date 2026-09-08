@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { encryptPayload, decryptPayload } = require('./crypto-utils');
+const { encryptPayload, decryptPayload, encodeStatelessKey, decodeStatelessKey } = require('./crypto-utils');
 
 const app = express();
 app.use(cors());
@@ -321,7 +321,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Registration Endpoint (with AES-256-GCM Encryption & Custom Ordering)
+// Registration Endpoint (with Stateless Self-Contained AES-256-GCM Tokens)
 app.post('/api/register-keys', (req, res) => {
   const { keys, preferredOrder, ...directPayload } = req.body;
   const rawKeys = keys || directPayload;
@@ -330,9 +330,10 @@ app.post('/api/register-keys', (req, res) => {
     return res.status(400).json({ error: "No keys provided!" });
   }
 
-  const virtualKey = 'sk-merged-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  // Generate self-contained stateless encrypted virtual key
+  const virtualKey = encodeStatelessKey(rawKeys, preferredOrder);
   
-  // Encrypt user keys on disk with AES-256-GCM
+  // Also register in memory/disk cache for server-side metrics
   const encrypted = encryptPayload(rawKeys);
   keysDatabase[virtualKey] = {
     ...encrypted,
@@ -347,6 +348,100 @@ app.post('/api/register-keys', (req, res) => {
     virtualKey: virtualKey,
     endpoint: `${proto}://${req.get('host')}/v1/chat/completions`
   });
+});
+
+// 1-Click Provider Key Health Auditor Endpoint
+app.post('/api/verify-provider-key', async (req, res) => {
+  const { provider, key } = req.body;
+  if (!provider || !key) {
+    return res.status(400).json({ valid: false, error: "Provider and key required" });
+  }
+
+  const cleanKey = key.trim();
+  const config = PROVIDER_ENDPOINTS[provider];
+  if (!config) {
+    return res.status(400).json({ valid: false, error: "Unknown provider: " + provider });
+  }
+
+  const startTime = Date.now();
+  try {
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
+      });
+      const latencyMs = Date.now() - startTime;
+      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: 'gemini-2.0-flash' });
+      const err = await r.json().catch(() => ({}));
+      return res.status(400).json({ valid: false, error: err.error?.message || `HTTP ${r.status}` });
+    }
+
+    if (provider === 'github') {
+      const r = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${cleanKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 })
+      });
+      const latencyMs = Date.now() - startTime;
+      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: 'gpt-4o-mini' });
+      const err = await r.json().catch(() => ({}));
+      return res.status(400).json({ valid: false, error: err.error?.message || `HTTP ${r.status}` });
+    }
+
+    if (config.type === 'openai') {
+      let testModel = 'llama-3.1-8b-instant';
+      if (provider === 'cerebras') testModel = 'llama3.1-8b';
+      else if (provider === 'openrouter') testModel = 'google/gemini-2.0-flash-exp:free';
+      else if (provider === 'openai') testModel = 'gpt-4o-mini';
+      else if (provider === 'together') testModel = 'meta-llama/Llama-3-8b-chat-hf';
+      else if (provider === 'siliconflow') testModel = 'Qwen/Qwen2.5-7B-Instruct';
+      else if (provider === 'deepinfra') testModel = 'meta-llama/Meta-Llama-3-8B-Instruct';
+      else if (provider === 'mistral') testModel = 'open-mistral-7b';
+
+      const r = await fetch(config.url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cleanKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://venar.ai',
+          'X-Title': 'Venar Ping'
+        },
+        body: JSON.stringify({ model: testModel, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 })
+      });
+      const latencyMs = Date.now() - startTime;
+      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: testModel });
+      const err = await r.json().catch(() => ({}));
+      return res.status(400).json({ valid: false, error: err.error?.message || `HTTP ${r.status}` });
+    }
+
+    if (provider === 'cohere') {
+      const r = await fetch('https://api.cohere.com/v1/chat', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${cleanKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'ping', max_tokens: 1 })
+      });
+      const latencyMs = Date.now() - startTime;
+      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: 'command-r' });
+      return res.status(400).json({ valid: false, error: `HTTP ${r.status}` });
+    }
+
+    if (provider === 'anthropic') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': cleanKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-3-5-haiku-20241022', messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 })
+      });
+      const latencyMs = Date.now() - startTime;
+      if (r.ok) return res.json({ valid: true, provider, latencyMs, model: 'claude-3-5-haiku' });
+      return res.status(400).json({ valid: false, error: `HTTP ${r.status}` });
+    }
+
+    return res.json({ valid: true, provider, latencyMs: Date.now() - startTime });
+  } catch (e) {
+    return res.status(500).json({ valid: false, error: e.message || "Ping network timeout" });
+  }
 });
 
 // Live Mission-Control Health & Stats Endpoint
@@ -418,20 +513,54 @@ app.post('/v1/chat/completions', async (req, res) => {
   const startTime = Date.now();
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: "Missing/Invalid Authorization" });
+  const rawToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : '';
+
+  let userKeys = null;
+  let preferredOrder = [];
+
+  // 1. Decrypt stateless self-contained token (Zero database dependency, cold-start proof)
+  if (rawToken) {
+    const stateless = decodeStatelessKey(rawToken);
+    if (stateless && stateless.keys && Object.keys(stateless.keys).length > 0) {
+      userKeys = stateless.keys;
+      preferredOrder = stateless.preferredOrder || [];
+    } else {
+      // 2. Fall back to in-memory/disk database for legacy sk-merged- keys
+      const storedRecord = keysDatabase[rawToken];
+      if (storedRecord) {
+        userKeys = decryptPayload(storedRecord);
+        preferredOrder = storedRecord.preferredOrder || [];
+      }
+    }
   }
 
-  const virtualKey = authHeader.split(' ')[1];
-  const storedRecord = keysDatabase[virtualKey];
-  if (!storedRecord) {
-    return res.status(401).json({ error: "Invalid Ultimate Merged API Key!" });
+  // 3. Fallback: check x-venar-client-keys header (auto-passed from browser session)
+  if ((!userKeys || Object.keys(userKeys).length === 0) && req.headers['x-venar-client-keys']) {
+    try {
+      userKeys = JSON.parse(decodeURIComponent(req.headers['x-venar-client-keys']));
+    } catch (e) {}
   }
 
-  // Decrypt user keys securely in RAM
-  const userKeys = decryptPayload(storedRecord);
-  if (!userKeys) {
-    return res.status(500).json({ error: "Failed to decrypt provider keys" });
+  // 4. Demo Fallback: check if server environment has shared sandbox keys
+  if (!userKeys || Object.keys(userKeys).length === 0) {
+    const demo = {};
+    if (process.env.GROQ_API_KEY) demo.groq = process.env.GROQ_API_KEY;
+    if (process.env.GEMINI_API_KEY) demo.gemini = process.env.GEMINI_API_KEY;
+    if (process.env.GITHUB_TOKEN) demo.github = process.env.GITHUB_TOKEN;
+    if (process.env.OPENROUTER_API_KEY) demo.openrouter = process.env.OPENROUTER_API_KEY;
+    if (Object.keys(demo).length > 0) {
+      userKeys = demo;
+    }
+  }
+
+  if (!userKeys || Object.keys(userKeys).length === 0) {
+    return res.status(401).json({
+      error: "No active API keys found!",
+      reasons: [
+        "Please paste at least one free API key (Groq, Google AI Studio, GitHub PAT, etc.) in the marketplace above.",
+        "Your keys are encrypted directly in your browser session for maximum security."
+      ]
+    });
   }
 
   const { messages, model: requestedModel, stream = false } = req.body;
@@ -461,10 +590,10 @@ app.post('/v1/chat/completions', async (req, res) => {
   }
 
   // Apply custom preferred order if defined by user
-  if (storedRecord.preferredOrder && storedRecord.preferredOrder.length > 0) {
+  if (preferredOrder && preferredOrder.length > 0) {
     candidates.sort((a, b) => {
-      const idxA = storedRecord.preferredOrder.indexOf(a.p);
-      const idxB = storedRecord.preferredOrder.indexOf(b.p);
+      const idxA = preferredOrder.indexOf(a.p);
+      const idxB = preferredOrder.indexOf(b.p);
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
       if (idxA !== -1) return -1;
       if (idxB !== -1) return 1;

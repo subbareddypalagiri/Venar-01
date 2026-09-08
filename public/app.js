@@ -171,7 +171,10 @@ providers.forEach(p => {
     <div class="input-group">
       <div class="input-header">
         <label for="key-${p.id}">${p.name} Key</label>
-        <a href="${p.link}" target="_blank" class="link-btn">Get Key ↗</a>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button class="verify-key-btn" id="verify-btn-${p.id}" onclick="verifySingleKey('${p.id}')">⚡ Verify</button>
+          <a href="${p.link}" target="_blank" class="link-btn">Get Key ↗</a>
+        </div>
       </div>
       <input type="password" id="key-${p.id}" data-provider-id="${p.id}" placeholder="Paste API Key here...">
     </div>
@@ -496,6 +499,249 @@ window.clearModelSearch = function() {
   renderCatalog();
 };
 
+// ==========================================
+// 1-CLICK PROVIDER KEY HEALTH AUDITOR
+// ==========================================
+window.verifySingleKey = async function(providerId) {
+  const inputEl = document.getElementById(`key-${providerId}`);
+  const btnEl = document.getElementById(`verify-btn-${providerId}`);
+  const statusEl = document.getElementById(`status-${providerId}`);
+
+  const rawKey = inputEl ? inputEl.value.trim() : '';
+  if (!rawKey) {
+    alert("Please paste an API key first to verify!");
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  const origText = btnEl.innerText;
+  btnEl.innerText = "⏳ Ping...";
+  btnEl.disabled = true;
+
+  try {
+    const res = await fetch('/api/verify-provider-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: providerId, key: rawKey })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.valid) {
+      btnEl.innerText = "✅ Valid";
+      btnEl.classList.add('verified');
+      if (statusEl) {
+        statusEl.className = 'status-pill status-ready';
+        statusEl.innerText = `🟢 Ready (${data.latencyMs}ms)`;
+      }
+      saveKeysToStorage();
+      await ensureActiveToken(); // Seamlessly compile stateless key in background
+    } else {
+      btnEl.innerText = "❌ Failed";
+      if (statusEl) {
+        statusEl.className = 'status-pill status-cooldown';
+        statusEl.innerText = `❌ Invalid Key`;
+      }
+      alert(`Key Verification Failed for ${providerId.toUpperCase()}:\n${data.error || 'Invalid credentials or expired quota.'}`);
+    }
+  } catch (err) {
+    btnEl.innerText = "⚠️ Error";
+    alert(`Network error verifying key: ${err.message}`);
+  } finally {
+    setTimeout(() => {
+      btnEl.disabled = false;
+      if (!btnEl.classList.contains('verified')) btnEl.innerText = origText;
+    }, 2500);
+  }
+};
+
+// ==========================================
+// DEVELOPER SDK INTEGRATION HUB
+// ==========================================
+let activeSdkTab = 'cursor';
+
+function getActiveEndpoint() {
+  const ep = localStorage.getItem('venar_endpoint');
+  if (ep) return ep;
+  return `${window.location.origin}/v1/chat/completions`;
+}
+
+function getActiveToken() {
+  return generatedToken || localStorage.getItem('venar_virtual_key') || 'sk-merged-v2-YOUR_ENCRYPTED_GATEWAY_TOKEN';
+}
+
+function updateSdkSnippet() {
+  const display = document.getElementById('sdk-code-display');
+  if (!display) return;
+
+  const endpoint = getActiveEndpoint();
+  const baseUrl = endpoint.replace('/chat/completions', '');
+  const token = getActiveToken();
+
+  if (activeSdkTab === 'cursor') {
+    display.innerText = `// In Cursor / VS Code Cline / Continue settings:
+{
+  "openai.apiBase": "${baseUrl}",
+  "openai.apiKey": "${token}",
+  "openai.model": "claude-3-5-sonnet" // or "deepseek-r1", "gpt-4o", "qwen-2-5-coder-32b"
+}`;
+  } else if (activeSdkTab === 'python') {
+    display.innerText = `from openai import OpenAI
+
+client = OpenAI(
+    base_url="${baseUrl}",
+    api_key="${token}"
+)
+
+# Stream DeepSeek R1 or Claude 3.5 with multi-cloud fallback:
+response = client.chat.completions.create(
+    model="deepseek-r1",
+    messages=[{"role": "user", "content": "Write a high-performance LRU Cache"}],
+    stream=True
+)
+
+for chunk in response:
+    if chunk.choices and chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")`;
+  } else if (activeSdkTab === 'node') {
+    display.innerText = `import OpenAI from "openai";
+
+const openai = new OpenAI({
+  baseURL: "${baseUrl}",
+  apiKey: "${token}"
+});
+
+const stream = await openai.chat.completions.create({
+  model: "claude-3-5-sonnet",
+  messages: [{ role: "user", content: "Optimize this algorithm" }],
+  stream: true,
+});
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content || "");
+}`;
+  } else if (activeSdkTab === 'curl') {
+    display.innerText = `curl -X POST "${endpoint}" \\
+  -H "Authorization: Bearer ${token}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "deepseek-r1",
+    "messages": [{"role": "user", "content": "Hello Venar!"}],
+    "stream": true
+  }'`;
+  }
+}
+
+window.switchSdkTab = function(tabName) {
+  activeSdkTab = tabName;
+  document.querySelectorAll('.sdk-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tabName);
+  });
+  updateSdkSnippet();
+};
+
+document.querySelectorAll('.sdk-tab').forEach(b => {
+  b.addEventListener('click', () => switchSdkTab(b.getAttribute('data-tab')));
+});
+
+window.copySdkCode = function() {
+  const code = document.getElementById('sdk-code-display')?.innerText || '';
+  navigator.clipboard.writeText(code).then(() => {
+    alert("Integration code snippet copied to clipboard!");
+  }).catch(e => console.error("Copy failed:", e));
+};
+
+updateSdkSnippet();
+
+// ==========================================
+// FAANG-GRADE MULTI-TURN AI STUDIO & CASCADE
+// ==========================================
+let conversationMessages = [];
+let activeAbortController = null;
+
+// Markdown & Code Highlighter formatter
+function formatMarkdown(raw) {
+  if (!raw) return "";
+  let html = raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Code blocks: ```lang ... ```
+  html = html.replace(/```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    const codeId = 'code-' + Math.random().toString(36).substring(7);
+    return `
+      <div class="code-block-wrapper" style="position: relative; margin: 12px 0;">
+        <div style="display: flex; justify-content: space-between; background: #1e293b; padding: 6px 12px; border-radius: 8px 8px 0 0; font-size: 11px; font-weight: 700; color: #94a3b8;">
+          <span>${lang || 'CODE'}</span>
+          <button onclick="copyCodeSnippet('${codeId}')" style="background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;">📋 Copy</button>
+        </div>
+        <pre style="margin: 0; border-radius: 0 0 8px 8px;"><code id="${codeId}">${code}</code></pre>
+      </div>
+    `;
+  });
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+
+  return html;
+}
+
+window.copyCodeSnippet = function(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    alert("Code copied to clipboard!");
+  });
+};
+
+// Seamless Token Auto-Compiler: Ensures user always has a valid token
+async function ensureActiveToken() {
+  const payload = {};
+  let keyCount = 0;
+  providers.forEach(p => {
+    const val = document.getElementById(`key-${p.id}`)?.value.trim();
+    if (val) {
+      payload[p.id] = val;
+      keyCount++;
+    }
+  });
+
+  if (keyCount > 0) {
+    try {
+      const res = await fetch('/api/register-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys: payload, preferredOrder })
+      });
+      const data = await res.json();
+      if (data.success) {
+        generatedToken = data.virtualKey;
+        localStorage.setItem('venar_virtual_key', data.virtualKey);
+        localStorage.setItem('venar_endpoint', data.endpoint);
+        const tokEl = document.getElementById('val-token');
+        if (tokEl) tokEl.innerText = data.virtualKey;
+        const endEl = document.getElementById('val-endpoint');
+        if (endEl) endEl.innerText = data.endpoint;
+        updateSdkSnippet();
+        return { token: data.virtualKey, payload };
+      }
+    } catch (e) {
+      console.warn("Auto-compile registration error:", e);
+    }
+  }
+
+  // Fallback to existing saved token
+  const existingToken = generatedToken || localStorage.getItem('venar_virtual_key') || '';
+  return { token: existingToken, payload };
+}
+
+// Model Catalog "Test in Playground" selection
 window.selectModelInPlayground = function(modelId) {
   const sel = document.getElementById('play-model-select');
   if (sel) {
@@ -522,13 +768,12 @@ window.selectModelInPlayground = function(modelId) {
   if (input) input.focus();
 };
 
-// Search input event
+// Search & filter events
 const searchInput = document.getElementById('model-search-input');
 if (searchInput) {
   searchInput.addEventListener('input', () => renderCatalog());
 }
 
-// Filter pills events
 const filterPills = document.querySelectorAll('.filter-pill');
 filterPills.forEach(pill => {
   pill.addEventListener('click', () => {
@@ -539,89 +784,301 @@ filterPills.forEach(pill => {
   });
 });
 
-// Load catalog on startup
 loadModelCatalog();
 
-// Playground (Real-time SSE Streaming with Target Model Routing)
+// Studio Parameters Drawer Toggle
+const btnToggleParams = document.getElementById('btn-toggle-params');
+const paramsDrawer = document.getElementById('studio-params-drawer');
+if (btnToggleParams && paramsDrawer) {
+  btnToggleParams.addEventListener('click', () => {
+    paramsDrawer.classList.toggle('hidden');
+    btnToggleParams.classList.toggle('active');
+  });
+}
+
+// Sliders live values
+const tempInput = document.getElementById('param-temp');
+if (tempInput) {
+  tempInput.addEventListener('input', () => {
+    document.getElementById('val-param-temp').innerText = tempInput.value;
+  });
+}
+
+const maxTokensInput = document.getElementById('param-max-tokens');
+if (maxTokensInput) {
+  maxTokensInput.addEventListener('input', () => {
+    document.getElementById('val-param-max-tokens').innerText = maxTokensInput.value;
+  });
+}
+
+// Clear Chat Thread
+const btnClearChat = document.getElementById('btn-clear-chat');
+if (btnClearChat) {
+  btnClearChat.addEventListener('click', () => {
+    if (conversationMessages.length > 0 && confirm("Clear conversation thread?")) {
+      conversationMessages = [];
+      const thread = document.getElementById('studio-chat-thread');
+      if (thread) {
+        thread.innerHTML = `
+          <div class="chat-welcome-banner" id="chat-welcome-banner">
+            <div class="welcome-icon">✨</div>
+            <h4>Welcome to Venar Universal AI Studio</h4>
+            <p>Pick a benchmark preset above or type any question below. Real-time token streaming and multi-cloud cascade tracking will appear live.</p>
+          </div>
+        `;
+      }
+      document.getElementById('telemetry-route-status').innerText = "Thread cleared • Gateway Ready";
+    }
+  });
+}
+
+// Stop current generation
+window.stopCurrentGeneration = function() {
+  if (activeAbortController) {
+    activeAbortController.abort();
+    activeAbortController = null;
+  }
+};
+
+// Benchmark Quick Presets
+window.applyBenchmarkPreset = function(type) {
+  const modelSel = document.getElementById('play-model-select');
+  const inputEl = document.getElementById('play-input');
+  if (!inputEl) return;
+
+  if (type === 'coder') {
+    if (modelSel) modelSel.value = 'qwen-2-5-coder-32b';
+    inputEl.value = "Write a high-performance LRU Cache class in TypeScript with generic types, O(1) operations, and zero dependencies.";
+  } else if (type === 'reasoning') {
+    if (modelSel) modelSel.value = 'deepseek-r1';
+    inputEl.value = "Solve this step-by-step: A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Verify with mathematical proof.";
+  } else if (type === 'speed') {
+    if (modelSel) modelSel.value = 'llama-3-1-8b';
+    inputEl.value = "Write an insightful 250-word overview on how modern AI Gateway architectures handle multi-cloud cascades and rate-limit mitigation.";
+  } else if (type === 'quantum') {
+    if (modelSel) modelSel.value = 'claude-3-5-sonnet';
+    inputEl.value = "Explain Quantum Entanglement and Superposition in exactly 3 brilliant, intuitive bullet points for senior engineers.";
+  }
+
+  // Scroll to studio and trigger send
+  const studio = document.querySelector('.studio-container');
+  if (studio) studio.scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('btn-send-play')?.click();
+};
+
+// Auto-expanding textarea
+const playTextarea = document.getElementById('play-input');
+if (playTextarea) {
+  playTextarea.addEventListener('input', () => {
+    playTextarea.style.height = 'auto';
+    playTextarea.style.height = Math.min(playTextarea.scrollHeight, 140) + 'px';
+  });
+
+  playTextarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('btn-send-play')?.click();
+    }
+  });
+}
+
+// Main AI Studio Send Runner (Multi-Turn Conversational SSE)
 document.getElementById('btn-send-play').addEventListener('click', async () => {
-  const promptInput = document.getElementById('play-input').value.trim();
-  const outputBox = document.getElementById('play-output');
+  const inputEl = document.getElementById('play-input');
+  const userText = (inputEl?.value || '').trim();
+  const thread = document.getElementById('studio-chat-thread');
+  const sendBtn = document.getElementById('btn-send-play');
+  const stopBtn = document.getElementById('btn-stop-play');
   const selectedModel = document.getElementById('play-model-select')?.value || 'auto';
+  const systemPrompt = document.getElementById('param-system-prompt')?.value.trim();
+  const temperature = parseFloat(document.getElementById('param-temp')?.value || '0.7');
+  const maxTokens = parseInt(document.getElementById('param-max-tokens')?.value || '2048');
+  const isStreaming = document.getElementById('param-stream')?.checked ?? true;
 
-  if (!promptInput) return alert("Please enter a test prompt first!");
-  if (!generatedToken) return alert("Please generate your Ultimate Merged API Key first!");
+  if (!userText) return alert("Please enter a prompt first!");
 
-  const targetLabel = selectedModel === 'auto' ? 'Auto-Route' : selectedModel;
-  outputBox.innerText = `Connecting to Venar Engine (Routing: ${targetLabel}, Streaming live)...`;
-  outputBox.style.color = "#a78bfa";
+  // Ensure active token (auto-compiles stateless token from input fields if available)
+  const { token, payload: clientKeys } = await ensureActiveToken();
+
+  if (!token && (!clientKeys || Object.keys(clientKeys).length === 0)) {
+    alert("🔑 Quick Start: Please paste at least one free API key (like Groq, Google AI Studio, or GitHub PAT) in the marketplace above to begin streaming!");
+    document.getElementById('providers-container')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  // Hide welcome banner on first message
+  const welcomeBanner = document.getElementById('chat-welcome-banner');
+  if (welcomeBanner) welcomeBanner.classList.add('hidden');
+
+  // 1. Append User Message Bubble
+  conversationMessages.push({ role: 'user', content: userText });
+  inputEl.value = "";
+  inputEl.style.height = 'auto';
+
+  const userTurnEl = document.createElement('div');
+  userTurnEl.className = 'chat-turn user';
+  userTurnEl.innerHTML = `
+    <div class="chat-avatar">👤</div>
+    <div class="chat-bubble">${formatMarkdown(userText)}</div>
+  `;
+  thread.appendChild(userTurnEl);
+
+  // 2. Append Assistant Message Bubble (Placeholder for Streaming)
+  const assistantTurnEl = document.createElement('div');
+  assistantTurnEl.className = 'chat-turn assistant';
+  const bubbleId = 'bubble-' + Math.random().toString(36).substring(7);
+  assistantTurnEl.innerHTML = `
+    <div class="chat-avatar">🧠</div>
+    <div class="chat-bubble" id="${bubbleId}"><span class="spinner"></span> Routing cascade...</div>
+  `;
+  thread.appendChild(assistantTurnEl);
+  thread.scrollTop = thread.scrollHeight;
+
+  // Telemetry UI
+  const telPulse = document.querySelector('.telemetry-pulse');
+  const telStatus = document.getElementById('telemetry-route-status');
+  const telProvider = document.getElementById('tel-provider');
+  const telLatency = document.getElementById('tel-latency');
+  const telSpeed = document.getElementById('tel-speed');
+
+  if (telPulse) telPulse.className = 'telemetry-pulse pulse-running';
+  if (telStatus) telStatus.innerText = `Connecting ➔ Target: ${selectedModel} (Streaming live)...`;
+
+  sendBtn.classList.add('hidden');
+  stopBtn.classList.remove('hidden');
+
+  activeAbortController = new AbortController();
+  const startTime = Date.now();
+  let accumulatedText = "";
+  let streamTokenCount = 0;
+  let routedProvider = "";
+  let routedModel = selectedModel;
 
   try {
-    const payload = {
-      messages: [{ role: 'user', content: promptInput }],
-      stream: true
+    const reqBody = {
+      messages: [
+        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+        ...conversationMessages
+      ],
+      stream: isStreaming,
+      temperature,
+      max_tokens: maxTokens
     };
     if (selectedModel && selectedModel !== 'auto') {
-      payload.model = selectedModel;
+      reqBody.model = selectedModel;
     }
 
     const response = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${generatedToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'x-venar-client-keys': encodeURIComponent(JSON.stringify(clientKeys || {}))
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(reqBody),
+      signal: activeAbortController.signal
     });
 
+    // Check upstream response headers
+    routedProvider = response.headers.get('x-venar-provider') || '';
+    const headerModel = response.headers.get('x-venar-model');
+    if (headerModel) routedModel = headerModel;
+
     if (!response.ok) {
-      const data = await response.json().catch(() => ({ error: "Request failed" }));
-      let errText = `[ROUTING EXHAUSTED] - Error: ${data.error || response.statusText}\n\n🔍 Upstream Provider Diagnostics:`;
-      if (Array.isArray(data.reasons) && data.reasons.length > 0) {
-        data.reasons.forEach(r => {
-          errText += `\n❌ ${r}`;
-        });
-      } else {
-        errText += `\n❌ No providers responded. Check that your pasted API keys are valid and active.`;
+      const errData = await response.json().catch(() => ({ error: "Request failed" }));
+      let failHtml = `<strong style="color: #dc2626;">[ROUTING EXHAUSTED]</strong><br>${errData.error || response.statusText}`;
+      if (Array.isArray(errData.reasons) && errData.reasons.length > 0) {
+        failHtml += `<div style="margin-top: 8px; font-size: 12px; color: #b91c1c;"><strong>Diagnostics:</strong><br>${errData.reasons.map(r => `• ${r}`).join('<br>')}</div>`;
       }
-      outputBox.innerText = errText;
-      outputBox.style.color = "#f87171";
+      document.getElementById(bubbleId).innerHTML = failHtml;
+      if (telPulse) telPulse.className = 'telemetry-pulse pulse-failover';
+      if (telStatus) telStatus.innerText = "❌ All candidate routes failed or were rate limited.";
       return;
     }
 
-    outputBox.innerText = "";
-    outputBox.style.color = "#111827";
+    // -------------------------------------------------------------
+    // STREAMING FLOW (SSE)
+    // -------------------------------------------------------------
+    if (isStreaming) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+      const bubbleEl = document.getElementById(bubbleId);
+      bubbleEl.innerHTML = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]') continue;
-        if (trimmed.startsWith('data:')) {
-          try {
-            const data = JSON.parse(trimmed.slice(5).trim());
-            const deltaText = data.choices?.[0]?.delta?.content;
-            if (deltaText) {
-              outputBox.innerText += deltaText;
-              outputBox.scrollTop = outputBox.scrollHeight;
-            }
-          } catch (e) {}
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data:')) {
+            try {
+              const data = JSON.parse(trimmed.slice(5).trim());
+
+              // Telemetry chunk
+              if (data.venar_telemetry) {
+                if (data.venar_telemetry.provider) routedProvider = data.venar_telemetry.provider;
+                if (data.venar_telemetry.model) routedModel = data.venar_telemetry.model;
+              }
+
+              const deltaText = data.choices?.[0]?.delta?.content;
+              if (deltaText) {
+                accumulatedText += deltaText;
+                streamTokenCount += 1;
+                bubbleEl.innerHTML = formatMarkdown(accumulatedText);
+                thread.scrollTop = thread.scrollHeight;
+              }
+            } catch (e) {}
+          }
         }
       }
+    } 
+    // -------------------------------------------------------------
+    // NON-STREAMING FLOW (JSON)
+    // -------------------------------------------------------------
+    else {
+      const jsonRes = await response.json();
+      accumulatedText = jsonRes.choices?.[0]?.message?.content || "";
+      streamTokenCount = Math.ceil(accumulatedText.length / 4);
+      if (jsonRes.venar_telemetry?.provider) routedProvider = jsonRes.venar_telemetry.provider;
+      document.getElementById(bubbleId).innerHTML = formatMarkdown(accumulatedText);
     }
+
+    // Record response in conversation history for multi-turn continuity
+    conversationMessages.push({ role: 'assistant', content: accumulatedText });
+
+    // Update Telemetry Metrics
+    const totalDurationMs = Date.now() - startTime;
+    const tokensPerSec = totalDurationMs > 0 ? Math.round((streamTokenCount / (totalDurationMs / 1000))) : 0;
+
+    if (telPulse) telPulse.className = 'telemetry-pulse';
+    if (telStatus) telStatus.innerText = `🟢 Success • Completed via ${routedProvider || 'Venar Gateway'}`;
+    if (telProvider) telProvider.innerText = `Provider: ${routedProvider || 'Active Route'}`;
+    if (telLatency) telLatency.innerText = `Latency: ${totalDurationMs}ms`;
+    if (telSpeed) telSpeed.innerText = `Speed: ~${tokensPerSec} t/s`;
+
   } catch (err) {
-    outputBox.innerText = `[NETWORK ERROR] - Failed to connect to proxy endpoint.`;
-    outputBox.style.color = "#f87171";
+    if (err.name === 'AbortError') {
+      document.getElementById(bubbleId).innerHTML += `<br><span style="color: #d97706; font-size: 12px;">[Generation stopped by user]</span>`;
+      if (telStatus) telStatus.innerText = "Generation stopped by user";
+    } else {
+      document.getElementById(bubbleId).innerHTML = `<span style="color: #dc2626;">[Connection Error] - ${err.message}</span>`;
+      if (telStatus) telStatus.innerText = "Network failure";
+    }
+  } finally {
+    sendBtn.classList.remove('hidden');
+    stopBtn.classList.add('hidden');
+    activeAbortController = null;
   }
 });
+
   
   // LOGIN LOGIC
   const loginForm = document.getElementById('loginForm');
