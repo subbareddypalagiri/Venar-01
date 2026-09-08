@@ -61,13 +61,215 @@ const PROVIDER_ENDPOINTS = {
   ai21: { url: 'https://api.ai21.com/studio/v1/chat/completions', type: 'openai', name: 'AI21 Labs' },
   gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/', type: 'gemini', name: 'Google Gemini' },
   cohere: { url: 'https://api.cohere.com/v1/chat', type: 'cohere', name: 'Cohere' },
-  anthropic: { url: 'https://api.anthropic.com/v1/messages', type: 'anthropic', name: 'Anthropic Claude' }
+  anthropic: { url: 'https://api.anthropic.com/v1/messages', type: 'anthropic', name: 'Anthropic Claude' },
+  github: { url: 'https://models.inference.ai.azure.com/chat/completions', type: 'openai', name: 'GitHub Models (Azure)' }
 };
 
 // Initialize metrics map for providers
 Object.keys(PROVIDER_ENDPOINTS).forEach(k => {
   metrics.providerStats[k] = { requests: 0, successes: 0, failures: 0, lastLatencyMs: 0 };
 });
+
+// Flagship Experiential-Grade Universal Model Catalog
+const MODEL_CATALOG = [
+  {
+    id: 'claude-3-5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    family: 'Anthropic',
+    badge: '👑 Flagship Coder',
+    context: '200K',
+    speed: '~85 t/s',
+    tags: ['coding', 'reasoning', 'free', 'popular', 'flagship'],
+    desc: 'Top-tier coding, system architecture, and nuanced reasoning.',
+    routes: [
+      { p: 'github', m: 'Claude-3.5-Sonnet', free: true, label: 'GitHub Models (Free PAT)' },
+      { p: 'openrouter', m: 'anthropic/claude-3.5-sonnet', free: false, label: 'OpenRouter' },
+      { p: 'anthropic', m: 'claude-3-5-sonnet-20241022', free: false, label: 'Anthropic Direct' }
+    ]
+  },
+  {
+    id: 'deepseek-r1',
+    name: 'DeepSeek R1 Reasoning',
+    family: 'DeepSeek',
+    badge: '🧠 Deep Reasoning',
+    context: '128K',
+    speed: '~280 t/s',
+    tags: ['reasoning', 'coding', 'free', 'popular', 'flagship'],
+    desc: 'State-of-the-art open reasoning rivaling OpenAI o1, with full chain-of-thought.',
+    routes: [
+      { p: 'openrouter', m: 'deepseek/deepseek-r1:free', free: true, label: 'OpenRouter Free' },
+      { p: 'groq', m: 'deepseek-r1-distill-llama-70b', free: true, label: 'Groq Cloud (Free)' },
+      { p: 'together', m: 'deepseek-ai/DeepSeek-R1', free: false, label: 'Together AI' },
+      { p: 'siliconflow', m: 'deepseek-ai/DeepSeek-R1', free: false, label: 'SiliconFlow' }
+    ]
+  },
+  {
+    id: 'deepseek-v3',
+    name: 'DeepSeek V3 (671B)',
+    family: 'DeepSeek',
+    badge: '⚡ MoE Powerhouse',
+    context: '64K',
+    speed: '~95 t/s',
+    tags: ['general', 'coding', 'free', 'popular'],
+    desc: 'Ultra-capable 671B parameter Mixture-of-Experts general intelligence model.',
+    routes: [
+      { p: 'openrouter', m: 'deepseek/deepseek-chat:free', free: true, label: 'OpenRouter Free' },
+      { p: 'siliconflow', m: 'deepseek-ai/DeepSeek-V3', free: false, label: 'SiliconFlow' },
+      { p: 'together', m: 'deepseek-ai/DeepSeek-V3', free: false, label: 'Together AI' },
+      { p: 'novita', m: 'deepseek/deepseek-v3', free: false, label: 'Novita AI' }
+    ]
+  },
+  {
+    id: 'qwen-2-5-coder-32b',
+    name: 'Qwen 2.5 Coder 32B',
+    family: 'Qwen',
+    badge: '💻 Specialist Coder',
+    context: '128K',
+    speed: '~110 t/s',
+    tags: ['coding', 'free', 'popular'],
+    desc: 'Ranked #1 open-source coding model in human eval and competitive benchmarks.',
+    routes: [
+      { p: 'openrouter', m: 'qwen/qwen-2.5-coder-32b-instruct:free', free: true, label: 'OpenRouter Free' },
+      { p: 'together', m: 'Qwen/Qwen2.5-Coder-32B-Instruct', free: false, label: 'Together AI' },
+      { p: 'siliconflow', m: 'Qwen/Qwen2.5-Coder-32B-Instruct', free: false, label: 'SiliconFlow' },
+      { p: 'deepinfra', m: 'Qwen/Qwen2.5-Coder-32B-Instruct', free: false, label: 'DeepInfra' }
+    ]
+  },
+  {
+    id: 'gemini-2-0-flash',
+    name: 'Google Gemini 2.0 Flash',
+    family: 'Google',
+    badge: '🚀 Next-Gen Flash',
+    context: '1M',
+    speed: '~140 t/s',
+    tags: ['general', 'fast', 'free', 'popular', 'flagship'],
+    desc: 'Real-time multi-modal with 1M context window and free 1,500 daily requests.',
+    routes: [
+      { p: 'gemini', m: 'gemini-2.0-flash', free: true, label: 'Google AI Studio (Free 1500 RPD)' },
+      { p: 'openrouter', m: 'google/gemini-2.0-flash-exp:free', free: true, label: 'OpenRouter Free' }
+    ]
+  },
+  {
+    id: 'gemini-1-5-pro',
+    name: 'Google Gemini 1.5 Pro',
+    family: 'Google',
+    badge: '📚 2M Context King',
+    context: '2M',
+    speed: '~75 t/s',
+    tags: ['reasoning', 'coding', 'free', 'popular'],
+    desc: 'Massive 2-million token context window for full codebase and book analysis.',
+    routes: [
+      { p: 'gemini', m: 'gemini-1.5-pro', free: true, label: 'Google AI Studio (Free)' },
+      { p: 'openrouter', m: 'google/gemini-pro-1.5:free', free: true, label: 'OpenRouter Free' }
+    ]
+  },
+  {
+    id: 'llama-3-3-70b',
+    name: 'Meta Llama 3.3 70B',
+    family: 'Meta',
+    badge: '🔥 Open Frontier',
+    context: '128K',
+    speed: '~350 t/s',
+    tags: ['general', 'reasoning', 'coding', 'fast', 'free', 'popular'],
+    desc: 'Matches original Llama 3.1 405B capabilities at 1/5 the latency.',
+    routes: [
+      { p: 'groq', m: 'llama-3.3-70b-versatile', free: true, label: 'Groq Cloud (Free)' },
+      { p: 'cerebras', m: 'llama-3.3-70b', free: true, label: 'Cerebras (Free 1800 t/s)' },
+      { p: 'github', m: 'Meta-Llama-3.3-70B-Instruct', free: true, label: 'GitHub Models (Free)' },
+      { p: 'openrouter', m: 'meta-llama/llama-3.3-70b-instruct:free', free: true, label: 'OpenRouter Free' }
+    ]
+  },
+  {
+    id: 'gpt-4o',
+    name: 'OpenAI GPT-4o',
+    family: 'OpenAI',
+    badge: '🌟 Omnimodal Peak',
+    context: '128K',
+    speed: '~90 t/s',
+    tags: ['general', 'reasoning', 'coding', 'free', 'popular', 'flagship'],
+    desc: 'OpenAIs flagship omni model for complex reasoning and enterprise tasks.',
+    routes: [
+      { p: 'github', m: 'gpt-4o', free: true, label: 'GitHub Models (Free Azure PAT)' },
+      { p: 'openai', m: 'gpt-4o', free: false, label: 'OpenAI Direct' },
+      { p: 'openrouter', m: 'openai/gpt-4o', free: false, label: 'OpenRouter' }
+    ]
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'OpenAI GPT-4o-mini',
+    family: 'OpenAI',
+    badge: '⚡ Lightweight Pro',
+    context: '128K',
+    speed: '~130 t/s',
+    tags: ['fast', 'general', 'free', 'popular'],
+    desc: 'High-speed, cost-effective multimodal mini model with exceptional intelligence.',
+    routes: [
+      { p: 'github', m: 'gpt-4o-mini', free: true, label: 'GitHub Models (Free Azure PAT)' },
+      { p: 'openai', m: 'gpt-4o-mini', free: false, label: 'OpenAI Direct' },
+      { p: 'openrouter', m: 'openai/gpt-4o-mini', free: false, label: 'OpenRouter' }
+    ]
+  },
+  {
+    id: 'claude-3-5-haiku',
+    name: 'Claude 3.5 Haiku',
+    family: 'Anthropic',
+    badge: '⚡ Supersonic Claude',
+    context: '200K',
+    speed: '~120 t/s',
+    tags: ['fast', 'coding', 'free'],
+    desc: 'Blazing fast responses with Claude 3 Opus-level coding performance.',
+    routes: [
+      { p: 'openrouter', m: 'anthropic/claude-3.5-haiku', free: false, label: 'OpenRouter' },
+      { p: 'anthropic', m: 'claude-3-5-haiku-20241022', free: false, label: 'Anthropic Direct' }
+    ]
+  },
+  {
+    id: 'mistral-large',
+    name: 'Mistral Large 2',
+    family: 'Mistral',
+    badge: '🇪🇺 European Flagship',
+    context: '128K',
+    speed: '~80 t/s',
+    tags: ['reasoning', 'coding', 'free'],
+    desc: 'Mistrals flagship 123B model with top tier multilingual and code generation.',
+    routes: [
+      { p: 'github', m: 'Mistral-large-2407', free: true, label: 'GitHub Models (Free Azure PAT)' },
+      { p: 'mistral', m: 'mistral-large-latest', free: false, label: 'Mistral AI Direct' },
+      { p: 'openrouter', m: 'mistralai/mistral-large', free: false, label: 'OpenRouter' }
+    ]
+  },
+  {
+    id: 'llama-3-1-8b',
+    name: 'Meta Llama 3.1 8B Instant',
+    family: 'Meta',
+    badge: '⚡ 1800+ Tokens/Sec',
+    context: '128K',
+    speed: '~1800 t/s',
+    tags: ['fast', 'general', 'free'],
+    desc: 'Instant generation at hardware wire speed on Cerebras & Groq free tiers.',
+    routes: [
+      { p: 'cerebras', m: 'llama3.1-8b', free: true, label: 'Cerebras (Free 1800 t/s)' },
+      { p: 'groq', m: 'llama-3.1-8b-instant', free: true, label: 'Groq Cloud (Free)' },
+      { p: 'github', m: 'Meta-Llama-3.1-8B-Instruct', free: true, label: 'GitHub Models (Free)' },
+      { p: 'openrouter', m: 'meta-llama/llama-3.1-8b-instruct:free', free: true, label: 'OpenRouter Free' }
+    ]
+  },
+  {
+    id: 'command-r-plus',
+    name: 'Cohere Command R+',
+    family: 'Cohere',
+    badge: '🔍 RAG & Search Master',
+    context: '128K',
+    speed: '~70 t/s',
+    tags: ['reasoning', 'general', 'free'],
+    desc: 'Optimized for high-accuracy Retrieval-Augmented Generation (RAG) and tool use.',
+    routes: [
+      { p: 'github', m: 'Cohere-command-r-plus', free: true, label: 'GitHub Models (Free Azure PAT)' },
+      { p: 'cohere', m: 'command-r-plus', free: true, label: 'Cohere Developer Free' },
+      { p: 'openrouter', m: 'cohere/command-r-plus', free: false, label: 'OpenRouter' }
+    ]
+  }
+];
 
 // Real, Active Model IDs for Fallback Routing
 const SYSTEM_MODELS = {
@@ -161,7 +363,32 @@ app.get('/api/health-stats', (req, res) => {
     metrics,
     cooldowns: activeCooldowns,
     providersCount: Object.keys(PROVIDER_ENDPOINTS).length,
-    registeredKeysCount: Object.keys(keysDatabase).length
+    registeredKeysCount: Object.keys(keysDatabase).length,
+    catalogModelsCount: MODEL_CATALOG.length
+  });
+});
+
+// Full Model Catalog Endpoint (Experiential Labs Style)
+app.get('/api/models', (req, res) => {
+  res.json({
+    total: MODEL_CATALOG.length,
+    models: MODEL_CATALOG
+  });
+});
+
+// OpenAI-Compatible List Models Endpoint (for Cursor, Cline, LibreChat)
+app.get('/v1/models', (req, res) => {
+  res.json({
+    object: "list",
+    data: MODEL_CATALOG.map(m => ({
+      id: m.id,
+      object: "model",
+      created: 1700000000,
+      owned_by: m.family.toLowerCase(),
+      permission: [],
+      root: m.id,
+      parent: null
+    }))
   });
 });
 
@@ -207,13 +434,31 @@ app.post('/v1/chat/completions', async (req, res) => {
     return res.status(500).json({ error: "Failed to decrypt provider keys" });
   }
 
-  const { messages, stream = false } = req.body;
+  const { messages, model: requestedModel, stream = false } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Invalid request. Messages array required." });
   }
 
-  const category = determineCategory(messages);
-  let candidates = [...SYSTEM_MODELS[category]];
+  // Route selection: Check if a specific catalog model was requested
+  let candidates = [];
+  let isCatalogModel = false;
+  
+  if (requestedModel && requestedModel !== 'auto' && requestedModel !== 'default') {
+    const matched = MODEL_CATALOG.find(m => 
+      m.id.toLowerCase() === requestedModel.toLowerCase() || 
+      m.name.toLowerCase() === requestedModel.toLowerCase()
+    );
+    if (matched && matched.routes && matched.routes.length > 0) {
+      candidates = matched.routes.map(r => ({ p: r.p, m: r.m }));
+      isCatalogModel = true;
+    }
+  }
+
+  // Fallback to intelligent prompt categorization if no specific model matched
+  if (candidates.length === 0) {
+    const category = determineCategory(messages);
+    candidates = [...(SYSTEM_MODELS[category] || SYSTEM_MODELS.general)];
+  }
 
   // Apply custom preferred order if defined by user
   if (storedRecord.preferredOrder && storedRecord.preferredOrder.length > 0) {

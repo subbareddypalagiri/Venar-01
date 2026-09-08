@@ -124,7 +124,8 @@ const providers = [
   { id: 'cloudflare', name: 'Cloudflare Workers AI', type: 'bulk', desc: 'Serverless AI inference with global free tier.', link: 'https://dash.cloudflare.com/', color: 'rgba(245, 158, 11, 0.4)' },
   { id: 'anthropic', name: 'Anthropic (Claude)', type: 'direct', desc: 'Free trial API credits upon registration (usually $5).', link: 'https://console.anthropic.com/settings/keys', color: 'rgba(212, 162, 118, 0.4)' },
   { id: 'openai', name: 'OpenAI', type: 'direct', desc: 'Standard platform with initial free trial credit (requires phone).', link: 'https://platform.openai.com/api-keys', color: 'rgba(16, 163, 127, 0.4)' },
-  { id: 'perplexity', name: 'Perplexity API', type: 'direct', desc: 'Online LLM inference with trial access.', link: 'https://www.perplexity.ai/settings/api', color: 'rgba(20, 184, 166, 0.4)' }
+  { id: 'perplexity', name: 'Perplexity API', type: 'direct', desc: 'Online LLM inference with trial access.', link: 'https://www.perplexity.ai/settings/api', color: 'rgba(20, 184, 166, 0.4)' },
+  { id: 'github', name: 'GitHub Models (Azure)', type: 'direct', desc: 'Free Claude 3.5 Sonnet, GPT-4o, Llama 3.3 using GitHub Personal Access Token (ghp_...).', link: 'https://github.com/settings/tokens', color: 'rgba(36, 41, 47, 0.4)' }
 ];
 
 // Initialize Provider Grid & Priority Tracking
@@ -364,7 +365,7 @@ window.clearAllSavedKeys = function() {
   }
 };
 
-// Clipboard Helper
+// Clipboard Helpers
 window.copyText = function(elementId) {
   const textVal = document.getElementById(elementId).innerText;
   navigator.clipboard.writeText(textVal).then(() => {
@@ -372,28 +373,204 @@ window.copyText = function(elementId) {
   }).catch(err => console.error("Failed to copy: ", err));
 };
 
-// Playground (Real-time SSE Streaming)
+window.copyRawText = function(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    alert(`Copied "${text}" to clipboard!`);
+  }).catch(err => console.error("Failed to copy: ", err));
+};
+
+// ==========================================
+// UNIVERSAL MODEL CATALOG & ROUTE DISCOVERY
+// ==========================================
+let allCatalogModels = [];
+let activeCatalogFilter = 'all';
+
+async function loadModelCatalog() {
+  try {
+    const res = await fetch('/api/models');
+    if (res.ok) {
+      const data = await res.json();
+      allCatalogModels = data.models || [];
+    }
+  } catch (e) {
+    console.warn("Using fallback catalog:", e);
+  }
+  renderCatalog();
+}
+
+function renderCatalog() {
+  const container = document.getElementById('models-container');
+  if (!container) return;
+
+  const searchTerm = (document.getElementById('model-search-input')?.value || '').toLowerCase().trim();
+  const clearBtn = document.getElementById('clear-search-btn');
+  if (clearBtn) clearBtn.classList.toggle('hidden', searchTerm.length === 0);
+
+  const filtered = allCatalogModels.filter(m => {
+    // Category pill filter
+    if (activeCatalogFilter === 'free' && !m.tags.includes('free') && !m.routes.some(r => r.free)) return false;
+    if (activeCatalogFilter === 'coding' && !m.tags.includes('coding')) return false;
+    if (activeCatalogFilter === 'reasoning' && !m.tags.includes('reasoning')) return false;
+    if (activeCatalogFilter === 'fast' && !m.tags.includes('fast')) return false;
+
+    // Search query filter
+    if (searchTerm) {
+      const matchName = m.name.toLowerCase().includes(searchTerm);
+      const matchId = m.id.toLowerCase().includes(searchTerm);
+      const matchFamily = m.family.toLowerCase().includes(searchTerm);
+      const matchDesc = m.desc.toLowerCase().includes(searchTerm);
+      const matchTags = m.tags.some(t => t.toLowerCase().includes(searchTerm));
+      const matchRoutes = m.routes.some(r => r.p.toLowerCase().includes(searchTerm) || (r.label && r.label.toLowerCase().includes(searchTerm)));
+      return matchName || matchId || matchFamily || matchDesc || matchTags || matchRoutes;
+    }
+    return true;
+  });
+
+  const countBadge = document.getElementById('catalog-count-badge');
+  if (countBadge) {
+    countBadge.innerText = `${filtered.length} Frontier Model${filtered.length === 1 ? '' : 's'} Ready`;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: rgba(255,255,255,0.7); border-radius: 16px;">
+        <p style="font-size: 16px; font-weight: 700; color: #4b5563;">No models matched your search criteria.</p>
+        <button onclick="clearModelSearch()" style="margin-top: 10px; background: #111827; color: white; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-weight: 700;">Reset Filters</button>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(m => {
+    const familyClass = `family-${m.family.toLowerCase()}`;
+    const hasFreeRoute = m.routes.some(r => r.free);
+
+    const routesPipelineHtml = m.routes.map((r, i) => `
+      <span class="route-node ${r.free ? 'free-tier' : ''}" title="${r.label || r.p}">${r.p.toUpperCase()}</span>
+      ${i < m.routes.length - 1 ? '<span class="route-arrow">➔</span>' : ''}
+    `).join('');
+
+    return `
+      <div class="model-card">
+        <div>
+          <div class="model-card-top">
+            <span class="model-family-badge ${familyClass}">${m.family}</span>
+            <span class="model-badge-flag">${m.badge || ''}</span>
+          </div>
+
+          <h3 class="model-card-name">${m.name}</h3>
+
+          <div class="model-card-id-row">
+            <code class="model-id-code">${m.id}</code>
+            <button class="copy-id-btn" onclick="copyRawText('${m.id}')" title="Copy Model ID">📋</button>
+          </div>
+
+          <p class="model-card-desc">${m.desc}</p>
+
+          <div class="model-meta-pills">
+            <span class="meta-pill">Context: ${m.context}</span>
+            <span class="meta-pill">Speed: ${m.speed}</span>
+            ${hasFreeRoute ? '<span class="meta-pill meta-free">🟢 100% Free Route</span>' : ''}
+          </div>
+
+          <div class="route-matrix-box">
+            <div class="route-matrix-title">Multi-Cloud Fallback Route:</div>
+            <div class="route-flow-pipeline">
+              ${routesPipelineHtml}
+            </div>
+          </div>
+        </div>
+
+        <div class="model-card-actions">
+          <button class="card-action-btn card-btn-test" onclick="selectModelInPlayground('${m.id}')">⚡ Test in Playground</button>
+          <button class="card-action-btn card-btn-copy" onclick="copyRawText('${m.id}')">📋 Copy ID</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.clearModelSearch = function() {
+  const input = document.getElementById('model-search-input');
+  if (input) input.value = '';
+  renderCatalog();
+};
+
+window.selectModelInPlayground = function(modelId) {
+  const sel = document.getElementById('play-model-select');
+  if (sel) {
+    sel.value = modelId;
+  }
+  const input = document.getElementById('play-input');
+  if (input && !input.value.trim()) {
+    if (modelId.includes('coder') || modelId.includes('claude')) {
+      input.value = "Write a high-performance LRU Cache class in TypeScript with O(1) get and set.";
+    } else if (modelId.includes('r1') || modelId.includes('reasoning')) {
+      input.value = "A bat and ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Explain step by step.";
+    } else {
+      input.value = "Explain quantum computing in 3 simple, brilliant bullet points.";
+    }
+  }
+  const resultBox = document.getElementById('result-box');
+  if (resultBox && resultBox.classList.contains('hidden')) {
+    resultBox.classList.remove('hidden');
+  }
+  const playSection = document.querySelector('.test-playground');
+  if (playSection) {
+    playSection.scrollIntoView({ behavior: 'smooth' });
+  }
+  if (input) input.focus();
+};
+
+// Search input event
+const searchInput = document.getElementById('model-search-input');
+if (searchInput) {
+  searchInput.addEventListener('input', () => renderCatalog());
+}
+
+// Filter pills events
+const filterPills = document.querySelectorAll('.filter-pill');
+filterPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    filterPills.forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    activeCatalogFilter = pill.getAttribute('data-filter') || 'all';
+    renderCatalog();
+  });
+});
+
+// Load catalog on startup
+loadModelCatalog();
+
+// Playground (Real-time SSE Streaming with Target Model Routing)
 document.getElementById('btn-send-play').addEventListener('click', async () => {
   const promptInput = document.getElementById('play-input').value.trim();
   const outputBox = document.getElementById('play-output');
+  const selectedModel = document.getElementById('play-model-select')?.value || 'auto';
 
   if (!promptInput) return alert("Please enter a test prompt first!");
   if (!generatedToken) return alert("Please generate your Ultimate Merged API Key first!");
 
-  outputBox.innerText = "Connecting to Venar Engine (Streaming live)...";
+  const targetLabel = selectedModel === 'auto' ? 'Auto-Route' : selectedModel;
+  outputBox.innerText = `Connecting to Venar Engine (Routing: ${targetLabel}, Streaming live)...`;
   outputBox.style.color = "#a78bfa";
 
   try {
+    const payload = {
+      messages: [{ role: 'user', content: promptInput }],
+      stream: true
+    };
+    if (selectedModel && selectedModel !== 'auto') {
+      payload.model = selectedModel;
+    }
+
     const response = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${generatedToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: promptInput }],
-        stream: true
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {

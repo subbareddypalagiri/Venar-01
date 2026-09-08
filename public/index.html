@@ -90,12 +90,61 @@
       </div>
       <div class="metric-card">
         <span class="metric-label">🟢 Active Gateways</span>
-        <span class="metric-val" id="metric-providers">17 Online</span>
+        <span class="metric-val" id="metric-providers">18 Online</span>
       </div>
       <div class="metric-card">
         <span class="metric-label">🔒 Key Security</span>
         <span class="metric-val" style="color: #059669;">AES-256 Locked</span>
       </div>
+    </div>
+
+    <!-- Experiential Labs-Style Model Catalog & Multi-Cloud Route Matrix -->
+    <section class="model-catalog-section" id="model-catalog">
+      <div class="catalog-header">
+        <div class="catalog-header-left">
+          <h2 class="section-title" style="text-align: left; margin-bottom: 6px;">✨ Universal Free Model Catalog & Route Matrix</h2>
+          <p class="section-desc" style="text-align: left; margin: 0;">Access 100% Free Frontier Models (Claude 3.5 Sonnet, DeepSeek R1, GPT-4o, Qwen 2.5 Coder) across resilient multi-cloud routes.</p>
+        </div>
+        <div class="catalog-stats-pill">
+          <span class="pulse-dot"></span>
+          <span id="catalog-count-badge">13 Frontier Models Ready</span>
+        </div>
+      </div>
+
+      <!-- Search & Filter Controls -->
+      <div class="catalog-controls">
+        <div class="search-box-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="model-search-input" placeholder="Search models by name, family, or tag (e.g. claude, deepseek, coder, gpt, free)...">
+          <button id="clear-search-btn" class="clear-btn hidden" onclick="clearModelSearch()">✕</button>
+        </div>
+        <div class="filter-pills-bar" id="filter-pills-bar">
+          <button class="filter-pill active" data-filter="all">⭐ All Models</button>
+          <button class="filter-pill" data-filter="free">🟢 100% Free Routes</button>
+          <button class="filter-pill" data-filter="coding">💻 Top Coders</button>
+          <button class="filter-pill" data-filter="reasoning">🧠 Deep Reasoning</button>
+          <button class="filter-pill" data-filter="fast">⚡ Ultra-Fast (&lt;200ms)</button>
+        </div>
+      </div>
+
+      <!-- Models Grid Container -->
+      <div class="models-grid" id="models-container">
+        <!-- Rendered dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- Provider Marketplace -->
+    <div class="section-title-wrapper" style="margin-top: 50px;">
+      <h2 class="section-title">Global Free API Marketplace</h2>
+      <p class="section-desc">Connect as many as you want. The more keys you add, the smarter and more resilient your Venar engine becomes.</p>
+    </div>
+
+    <div class="instruction-steps">
+        <div class="step-item"><span class="step-num">1</span> Get free keys</div>
+        <div class="step-arrow">→</div>
+        <div class="step-item"><span class="step-num">2</span> Paste & rank priority</div>
+        <div class="step-arrow">→</div>
+        <div class="step-item"><span class="step-num">3</span> Compile Venar Key</div>
     </div>
 
     <div class="providers-grid" id="providers-container">
@@ -131,8 +180,31 @@
       </div>
 
       <div class="test-playground">
-        <h3 class="playground-title">Live Testing Playground</h3>
-        <p class="desc-text">Test the automatic routing and fallback magic below:</p>
+        <div class="playground-top-bar">
+          <div>
+            <h3 class="playground-title">Live Testing Playground</h3>
+            <p class="desc-text">Select any flagship model or let Venar auto-route based on prompt reasoning:</p>
+          </div>
+          <div class="model-select-group">
+            <label for="play-model-select" class="select-label">Target Model:</label>
+            <select id="play-model-select" class="playground-select">
+              <option value="auto">🤖 Auto-Route (Category Fallback)</option>
+              <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Free via GitHub/OpenRouter)</option>
+              <option value="deepseek-r1">DeepSeek R1 Reasoning (Free via OpenRouter/Groq)</option>
+              <option value="deepseek-v3">DeepSeek V3 671B (Free via OpenRouter/SiliconFlow)</option>
+              <option value="qwen-2-5-coder-32b">Qwen 2.5 Coder 32B (Free via OpenRouter)</option>
+              <option value="gemini-2-0-flash">Google Gemini 2.0 Flash (Free AI Studio)</option>
+              <option value="gemini-1-5-pro">Google Gemini 1.5 Pro (Free AI Studio)</option>
+              <option value="llama-3-3-70b">Meta Llama 3.3 70B (Free via Groq/Cerebras)</option>
+              <option value="gpt-4o">OpenAI GPT-4o (Free via GitHub Models)</option>
+              <option value="gpt-4o-mini">OpenAI GPT-4o-mini (Free via GitHub Models)</option>
+              <option value="claude-3-5-haiku">Claude 3.5 Haiku (Ultra-Fast)</option>
+              <option value="mistral-large">Mistral Large 2 (Free via GitHub Models)</option>
+              <option value="command-r-plus">Cohere Command R+ (Free via GitHub Models)</option>
+              <option value="llama-3-1-8b">Meta Llama 3.1 8B Instant (1800+ t/s)</option>
+            </select>
+          </div>
+        </div>
         <div class="chat-input-wrapper">
           <input type="text" id="play-input" placeholder="Ask your Venar engine a complex coding or logical question...">
           <button id="btn-send-play">Send</button>
