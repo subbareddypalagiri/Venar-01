@@ -1382,4 +1382,141 @@ footer { padding: 40px 0; border-top: 1px solid rgba(255,255,255,0.3); color: #1
   color: #065f46;
 }
 
+/* ==========================================
+   LIVE SYNC BUTTON & STRATEGY CONTROLS
+   ========================================== */
+.live-sync-btn {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  color: #c7d2fe;
+  border: 1px solid rgba(165, 180, 252, 0.4);
+  padding: 7px 15px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 15px rgba(49, 46, 129, 0.2);
+}
+
+.live-sync-btn:hover {
+  background: linear-gradient(135deg, #312e81, #4338ca);
+  color: #ffffff;
+  border-color: #818cf8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+}
+
+.live-sync-btn:active {
+  transform: translateY(0);
+}
+
+.sync-icon {
+  font-size: 13px;
+  display: inline-block;
+}
+
+/* Dual Execution Strategy Bar */
+.studio-strategy-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(243, 244, 246, 0.85);
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 12px;
+}
+
+.mode-toggle-group {
+  display: flex;
+  background: #e5e7eb;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.mode-toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #6b7280;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.mode-toggle-btn.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.mode-toggle-btn:hover:not(.active) {
+  color: #111827;
+}
+
+.provider-pin-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Authentic Vector SVG Icons in Model Cards & Chat */
+.brand-vector-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.brand-vector-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.model-family-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.route-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.chat-avatar.user-avatar {
+  background: #111827;
+  color: #ffffff;
+}
+
+.chat-avatar.assistant-avatar {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
 

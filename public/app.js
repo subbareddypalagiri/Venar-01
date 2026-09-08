@@ -1,5 +1,6 @@
 import { NeatGradient } from "https://esm.sh/@firecms/neat";
 import { initParticleText } from "./particle-text.js";
+import { getBrandIconSvg } from "./brand-icons.js";
 
 const config = {
     colors: [
@@ -387,6 +388,107 @@ window.copyRawText = function(text) {
 // ==========================================
 let allCatalogModels = [];
 let activeCatalogFilter = 'all';
+let currentStudioMode = 'auto'; // 'auto' | 'dedicated'
+let currentPinnedProvider = 'auto'; // 'auto' | provider key
+
+window.setStudioMode = function(mode) {
+  currentStudioMode = mode;
+  const btnAuto = document.getElementById('btn-mode-auto');
+  const btnDed = document.getElementById('btn-mode-dedicated');
+  if (btnAuto) btnAuto.classList.toggle('active', mode === 'auto');
+  if (btnDed) btnDed.classList.toggle('active', mode === 'dedicated');
+
+  const telStatus = document.getElementById('telemetry-route-status');
+  if (telStatus) {
+    telStatus.innerText = mode === 'dedicated' 
+      ? '🎯 Dedicated Pure Mode Active (Strict Model Isolation)' 
+      : '🤖 Auto-Cascade Mode Active (Multi-Cloud Failover)';
+  }
+};
+
+const providerPinSelect = document.getElementById('play-provider-pin');
+if (providerPinSelect) {
+  providerPinSelect.addEventListener('change', (e) => {
+    currentPinnedProvider = e.target.value;
+  });
+}
+
+window.triggerLiveModelSync = async function() {
+  const btn = document.getElementById('btn-live-sync');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = `<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></span> Polling Free Models...`;
+    btn.disabled = true;
+  }
+
+  try {
+    const res = await fetch('/api/models/live-sync');
+    const data = await res.json();
+    if (data.success) {
+      await loadModelCatalog();
+      alert(`✨ Live Free Model Sync Complete!\n\nDiscovered ${data.totalLiveFree} live free models (+${data.newlyDiscovered} new models added).\nTotal verified catalog now active: ${data.totalCombined} models!`);
+    } else {
+      alert(`Live Sync Warning: ${data.error || 'Could not reach sync endpoint'}`);
+    }
+  } catch (e) {
+    alert(`Sync error: ${e.message}`);
+  } finally {
+    if (btn) {
+      btn.innerHTML = origHtml;
+      btn.disabled = false;
+    }
+  }
+};
+
+function populateStudioModelSelect() {
+  const select = document.getElementById('play-model-select');
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = '';
+
+  const autoOpt = document.createElement('option');
+  autoOpt.value = 'auto';
+  autoOpt.innerText = '🤖 Auto-Route (Smart Category Cascade)';
+  select.appendChild(autoOpt);
+
+  const groups = {};
+  allCatalogModels.forEach(m => {
+    const fam = m.family || 'Other';
+    if (!groups[fam]) groups[fam] = [];
+    groups[fam].push(m);
+  });
+
+  const familyOrder = [
+    'Google', 'Anthropic', 'OpenAI', 'Meta', 'DeepSeek', 'Qwen', 'Mistral', 'Cohere', 'Microsoft', 'NVIDIA', 'Liquid', 'Nous', 'Cognitive', 'Other'
+  ];
+
+  const sortedFamilies = Object.keys(groups).sort((a, b) => {
+    const ia = familyOrder.indexOf(a);
+    const ib = familyOrder.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  sortedFamilies.forEach(fam => {
+    const groupEl = document.createElement('optgroup');
+    groupEl.label = `${fam} (${groups[fam].length} Models)`;
+    groups[fam].forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      const freeTag = m.routes.some(r => r.free) ? ' [Free]' : '';
+      opt.innerText = `${m.name}${freeTag} (${m.context}, ${m.speed})`;
+      groupEl.appendChild(opt);
+    });
+    select.appendChild(groupEl);
+  });
+
+  if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+    select.value = currentVal;
+  }
+}
 
 async function loadModelCatalog() {
   try {
@@ -398,6 +500,7 @@ async function loadModelCatalog() {
   } catch (e) {
     console.warn("Using fallback catalog:", e);
   }
+  populateStudioModelSelect();
   renderCatalog();
 }
 
@@ -415,6 +518,11 @@ function renderCatalog() {
     if (activeCatalogFilter === 'coding' && !m.tags.includes('coding')) return false;
     if (activeCatalogFilter === 'reasoning' && !m.tags.includes('reasoning')) return false;
     if (activeCatalogFilter === 'fast' && !m.tags.includes('fast')) return false;
+    if (activeCatalogFilter === 'google' && !m.family.toLowerCase().includes('google') && !m.routes.some(r => r.p === 'gemini')) return false;
+    if (activeCatalogFilter === 'github' && !m.routes.some(r => r.p === 'github')) return false;
+    if (activeCatalogFilter === 'groq' && !m.routes.some(r => r.p === 'groq' || r.p === 'cerebras')) return false;
+    if (activeCatalogFilter === 'deepseek' && !m.family.toLowerCase().includes('deepseek') && !m.id.includes('deepseek')) return false;
+    if (activeCatalogFilter === 'openrouter' && !m.routes.some(r => r.p === 'openrouter')) return false;
 
     // Search query filter
     if (searchTerm) {
@@ -431,7 +539,7 @@ function renderCatalog() {
 
   const countBadge = document.getElementById('catalog-count-badge');
   if (countBadge) {
-    countBadge.innerText = `${filtered.length} Frontier Model${filtered.length === 1 ? '' : 's'} Ready`;
+    countBadge.innerText = `${filtered.length} Verified Free Model${filtered.length === 1 ? '' : 's'} Ready`;
   }
 
   if (filtered.length === 0) {
@@ -449,7 +557,10 @@ function renderCatalog() {
     const hasFreeRoute = m.routes.some(r => r.free);
 
     const routesPipelineHtml = m.routes.map((r, i) => `
-      <span class="route-node ${r.free ? 'free-tier' : ''}" title="${r.label || r.p}">${r.p.toUpperCase()}</span>
+      <span class="route-node ${r.free ? 'free-tier' : ''}" title="${r.label || r.p}">
+        ${getBrandIconSvg(r.p, 13)}
+        <span>${r.p.toUpperCase()}</span>
+      </span>
       ${i < m.routes.length - 1 ? '<span class="route-arrow">➔</span>' : ''}
     `).join('');
 
@@ -457,7 +568,10 @@ function renderCatalog() {
       <div class="model-card">
         <div>
           <div class="model-card-top">
-            <span class="model-family-badge ${familyClass}">${m.family}</span>
+            <span class="model-family-badge ${familyClass}">
+              ${getBrandIconSvg(m.family, 16)}
+              <span>${m.family}</span>
+            </span>
             <span class="model-badge-flag">${m.badge || ''}</span>
           </div>
 
@@ -477,7 +591,7 @@ function renderCatalog() {
           </div>
 
           <div class="route-matrix-box">
-            <div class="route-matrix-title">Multi-Cloud Fallback Route:</div>
+            <div class="route-matrix-title">Multi-Cloud Route Matrix:</div>
             <div class="route-flow-pipeline">
               ${routesPipelineHtml}
             </div>
@@ -485,7 +599,7 @@ function renderCatalog() {
         </div>
 
         <div class="model-card-actions">
-          <button class="card-action-btn card-btn-test" onclick="selectModelInPlayground('${m.id}')">⚡ Test in Playground</button>
+          <button class="card-action-btn card-btn-test" onclick="selectModelInPlayground('${m.id}')">⚡ Test in Studio</button>
           <button class="card-action-btn card-btn-copy" onclick="copyRawText('${m.id}')">📋 Copy ID</button>
         </div>
       </div>
@@ -918,7 +1032,9 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
   const userTurnEl = document.createElement('div');
   userTurnEl.className = 'chat-turn user';
   userTurnEl.innerHTML = `
-    <div class="chat-avatar">👤</div>
+    <div class="chat-avatar user-avatar">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    </div>
     <div class="chat-bubble">${formatMarkdown(userText)}</div>
   `;
   thread.appendChild(userTurnEl);
@@ -928,7 +1044,9 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
   assistantTurnEl.className = 'chat-turn assistant';
   const bubbleId = 'bubble-' + Math.random().toString(36).substring(7);
   assistantTurnEl.innerHTML = `
-    <div class="chat-avatar">🧠</div>
+    <div class="chat-avatar assistant-avatar" id="avatar-${bubbleId}">
+      ${getBrandIconSvg(selectedModel, 20)}
+    </div>
     <div class="chat-bubble" id="${bubbleId}"><span class="spinner"></span> Routing cascade...</div>
   `;
   thread.appendChild(assistantTurnEl);
@@ -942,7 +1060,7 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
   const telSpeed = document.getElementById('tel-speed');
 
   if (telPulse) telPulse.className = 'telemetry-pulse pulse-running';
-  if (telStatus) telStatus.innerText = `Connecting ➔ Target: ${selectedModel} (Streaming live)...`;
+  if (telStatus) telStatus.innerText = `Connecting ➔ Target: ${selectedModel} (Mode: ${currentStudioMode})...`;
 
   sendBtn.classList.add('hidden');
   stopBtn.classList.remove('hidden');
@@ -962,19 +1080,29 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
       ],
       stream: isStreaming,
       temperature,
-      max_tokens: maxTokens
+      max_tokens: maxTokens,
+      mode: currentStudioMode
     };
     if (selectedModel && selectedModel !== 'auto') {
       reqBody.model = selectedModel;
     }
+    if (currentPinnedProvider && currentPinnedProvider !== 'auto') {
+      reqBody.provider = currentPinnedProvider;
+    }
+
+    const reqHeaders = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'x-venar-client-keys': encodeURIComponent(JSON.stringify(clientKeys || {})),
+      'x-venar-mode': currentStudioMode
+    };
+    if (currentPinnedProvider && currentPinnedProvider !== 'auto') {
+      reqHeaders['x-venar-provider'] = currentPinnedProvider;
+    }
 
     const response = await fetch('/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-venar-client-keys': encodeURIComponent(JSON.stringify(clientKeys || {}))
-      },
+      headers: reqHeaders,
       body: JSON.stringify(reqBody),
       signal: activeAbortController.signal
     });
@@ -984,6 +1112,12 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
     const headerModel = response.headers.get('x-venar-model');
     if (headerModel) routedModel = headerModel;
     let isFallback = response.headers.get('x-venar-fallback') === 'true';
+
+    // Update avatar with real routed provider logo
+    const avatarEl = document.getElementById(`avatar-${bubbleId}`);
+    if (avatarEl && routedProvider) {
+      avatarEl.innerHTML = getBrandIconSvg(routedProvider, 20);
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: "Request failed" }));
@@ -1063,10 +1197,12 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
     const tokensPerSec = totalDurationMs > 0 ? Math.round((streamTokenCount / (totalDurationMs / 1000))) : 0;
 
     if (telPulse) telPulse.className = 'telemetry-pulse';
-    if (isFallback) {
+    if (currentStudioMode === 'dedicated') {
+      telStatus.innerHTML = `<span style="background: rgba(99, 102, 241, 0.2); color: #6366f1; padding: 2px 8px; border-radius: 4px; font-weight: 700; margin-right: 6px;">🎯 Dedicated Pure</span> Isolated to <strong>${routedModel}</strong> via <strong>${routedProvider}</strong>`;
+    } else if (isFallback) {
       telStatus.innerHTML = `<span style="background: rgba(245, 158, 11, 0.2); color: #d97706; padding: 2px 8px; border-radius: 4px; font-weight: 700; margin-right: 6px;">⚡ Auto-Cascaded</span> Routed via <strong>${routedProvider}</strong> (${routedModel})`;
     } else {
-      telStatus.innerText = `🟢 Success • Completed via ${routedProvider || 'Venar Gateway'} (${routedModel})`;
+      telStatus.innerHTML = `<span style="background: rgba(16, 185, 129, 0.2); color: #059669; padding: 2px 8px; border-radius: 4px; font-weight: 700; margin-right: 6px;">🟢 Primary Route</span> Completed via <strong>${routedProvider || 'Venar Gateway'}</strong> (${routedModel})`;
     }
     if (telProvider) telProvider.innerText = `Provider: ${routedProvider || 'Active Route'}`;
     if (telLatency) telLatency.innerText = `Latency: ${totalDurationMs}ms`;

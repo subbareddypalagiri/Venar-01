@@ -103,11 +103,16 @@
       <div class="catalog-header">
         <div class="catalog-header-left">
           <h2 class="section-title" style="text-align: left; margin-bottom: 6px;">✨ Universal Free Model Catalog & Route Matrix</h2>
-          <p class="section-desc" style="text-align: left; margin: 0;">Access 100% Free Frontier Models (Claude 3.5 Sonnet, DeepSeek R1, GPT-4o, Qwen 2.5 Coder) across resilient multi-cloud routes.</p>
+          <p class="section-desc" style="text-align: left; margin: 0;">Access 85+ Verified 100% Free Frontier Models across resilient multi-cloud routes with zero subscription costs.</p>
         </div>
-        <div class="catalog-stats-pill">
-          <span class="pulse-dot"></span>
-          <span id="catalog-count-badge">13 Frontier Models Ready</span>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <button id="btn-live-sync" class="live-sync-btn" onclick="triggerLiveModelSync()">
+            <span class="sync-icon">🔄</span> Sync Live Free Models
+          </button>
+          <div class="catalog-stats-pill">
+            <span class="pulse-dot"></span>
+            <span id="catalog-count-badge">87 Verified Free Models</span>
+          </div>
         </div>
       </div>
 
@@ -115,7 +120,7 @@
       <div class="catalog-controls">
         <div class="search-box-wrapper">
           <span class="search-icon">🔍</span>
-          <input type="text" id="model-search-input" placeholder="Search models by name, family, or tag (e.g. claude, deepseek, coder, gpt, free)...">
+          <input type="text" id="model-search-input" placeholder="Search 87+ models by name, family, tag, or provider (e.g. gemini, claude, deepseek, qwen, llama)...">
           <button id="clear-search-btn" class="clear-btn hidden" onclick="clearModelSearch()">✕</button>
         </div>
         <div class="filter-pills-bar" id="filter-pills-bar">
@@ -124,6 +129,11 @@
           <button class="filter-pill" data-filter="coding">💻 Top Coders</button>
           <button class="filter-pill" data-filter="reasoning">🧠 Deep Reasoning</button>
           <button class="filter-pill" data-filter="fast">⚡ Ultra-Fast (&lt;200ms)</button>
+          <button class="filter-pill" data-filter="google">🌐 Google Suite</button>
+          <button class="filter-pill" data-filter="github">🐙 GitHub Azure</button>
+          <button class="filter-pill" data-filter="groq">⚡ Groq / Cerebras</button>
+          <button class="filter-pill" data-filter="deepseek">🐋 DeepSeek</button>
+          <button class="filter-pill" data-filter="openrouter">🔀 OpenRouter Live</button>
         </div>
       </div>
 
@@ -205,26 +215,41 @@
             <h3 class="playground-title">⚡ Universal AI Studio & Cascade Observability</h3>
             <p class="desc-text">Test multi-turn conversations, observe real-time cascade failover, and benchmark frontier models.</p>
           </div>
+          <!-- Dual Execution Mode Switcher & Strategy Bar -->
+          <div class="studio-strategy-bar">
+            <div class="mode-toggle-group">
+              <button class="mode-toggle-btn active" id="btn-mode-auto" onclick="setStudioMode('auto')">
+                <span class="mode-icon">🤖</span>
+                <span>Auto-Cascade Mode</span>
+              </button>
+              <button class="mode-toggle-btn" id="btn-mode-dedicated" onclick="setStudioMode('dedicated')">
+                <span class="mode-icon">🎯</span>
+                <span>Dedicated Pure Mode</span>
+              </button>
+            </div>
+            <div class="provider-pin-group">
+              <label for="play-provider-pin" class="select-label">🏢 Provider Pin:</label>
+              <select id="play-provider-pin" class="playground-select">
+                <option value="auto">Auto-Select (Fastest Healthy Route)</option>
+                <option value="gemini">Google AI Studio</option>
+                <option value="github">GitHub Models (Azure PAT)</option>
+                <option value="groq">Groq Cloud (LPU)</option>
+                <option value="cerebras">Cerebras CS-3 (1,800 t/s)</option>
+                <option value="openrouter">OpenRouter Free Tier</option>
+                <option value="siliconflow">SiliconFlow (Free Tier)</option>
+                <option value="mistral">Mistral AI (La Plateforme)</option>
+                <option value="cohere">Cohere Developer Free</option>
+                <option value="together">Together AI</option>
+                <option value="huggingface">Hugging Face Inference</option>
+              </select>
+            </div>
+          </div>
+
           <div class="studio-top-controls">
             <div class="model-select-group">
               <label for="play-model-select" class="select-label">Target Model:</label>
               <select id="play-model-select" class="playground-select">
                 <option value="auto">🤖 Auto-Route (Category Fallback)</option>
-                <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Free via GitHub/OpenRouter)</option>
-                <option value="claude-fable-5">Claude Fable 5.1 (Anthropic Frontier)</option>
-                <option value="claude-opus-5">Claude Opus 5 (Deep Synthesis)</option>
-                <option value="deepseek-r1">DeepSeek R1 Reasoning (Free via OpenRouter/Groq)</option>
-                <option value="deepseek-v3">DeepSeek V3 671B (Free via OpenRouter/SiliconFlow)</option>
-                <option value="qwen-2-5-coder-32b">Qwen 2.5 Coder 32B (Free via OpenRouter)</option>
-                <option value="gemini-2-0-flash">Google Gemini 2.5 Flash / 1.5 Flash (Free AI Studio)</option>
-                <option value="gemini-1-5-pro">Google Gemini 1.5 Pro (Free AI Studio)</option>
-                <option value="llama-3-3-70b">Meta Llama 3.3 70B (Free via Groq/Cerebras)</option>
-                <option value="gpt-4o">OpenAI GPT-4o (Free via GitHub Models)</option>
-                <option value="gpt-4o-mini">OpenAI GPT-4o-mini (Free via GitHub Models)</option>
-                <option value="claude-3-5-haiku">Claude 3.5 Haiku (Ultra-Fast)</option>
-                <option value="mistral-large">Mistral Large 2 (Free via GitHub Models)</option>
-                <option value="command-r-plus">Cohere Command R+ (Free via GitHub Models)</option>
-                <option value="llama-3-1-8b">Meta Llama 3.1 8B Instant (1800+ t/s)</option>
               </select>
             </div>
             <button class="studio-btn" id="btn-toggle-params" title="Model Parameters">⚙️ Parameters</button>
