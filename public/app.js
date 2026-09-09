@@ -1287,3 +1287,293 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
       });
   }
 
+  // ==========================================================================
+  // OPTION B: VENAR CODE AUTONOMOUS LOCAL PROJECT BUILDER
+  // ==========================================================================
+  window.applyAgentPreset = function(type) {
+    const promptEl = document.getElementById('agent-project-prompt');
+    const slugEl = document.getElementById('agent-project-name');
+    if (!promptEl) return;
+
+    const presets = {
+      pomodoro: {
+        prompt: "Build an ultra-sleek, FAANG-tier Pomodoro Productivity Dashboard with customizable work/short-break/long-break cycles, ambient audio soundscapes (Rain, Lo-Fi, Forest using Web Audio API), interactive task checklist with local storage persistence, session streak counter, dark glassmorphism aesthetic, and audio chime on timer completion.",
+        slug: "pomodoro-flow-pro"
+      },
+      saas: {
+        prompt: "Build a high-converting, modern AI SaaS Landing Page with a dynamic interactive pricing tiers calculator (monthly/annual toggle), testimonial slider with auto-rotation, live feature comparison matrix, expandable FAQ accordion, sleek glassmorphic navigation bar with scroll effects, and dark/light mode toggle.",
+        slug: "ai-saas-lander"
+      },
+      crypto: {
+        prompt: "Build a real-time Cryptocurrency & Portfolio Tracker with dynamic live simulated price tickers, interactive candlestick/sparkline charts using HTML5 Canvas, portfolio profit/loss calculator, watchlists stored in localStorage, search filter, and futuristic cyberpunk financial UI.",
+        slug: "crypto-lens-terminal"
+      },
+      kanban: {
+        prompt: "Build a modern Kanban Project Board with Drag & Drop functionality (HTML5 Drag and Drop API), customizable columns (Backlog, In Progress, Review, Done), task priority tags, color labels, due dates, instant search, and full persistence in localStorage.",
+        slug: "agile-kanban-board"
+      },
+      arcade: {
+        prompt: "Build a polished Retro Cyberpunk Space Shooter game using HTML5 Canvas with smooth 60FPS particle physics, player ship controls with keyboard and touch, enemy wave spawners, power-ups, neon laser audio effects using Web Audio API, high-score leaderboard, and retro CRT scanline effects.",
+        slug: "cyber-arcade-shooter"
+      }
+    };
+
+    if (presets[type]) {
+      promptEl.value = presets[type].prompt;
+      if (slugEl) slugEl.value = presets[type].slug;
+      promptEl.focus();
+      document.getElementById('agent-builder')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  window.clearAgentTerminal = function() {
+    const term = document.getElementById('agent-terminal-output');
+    if (term) {
+      term.innerHTML = `
+        <div class="term-line term-dim">// VENAR Autonomous Agent CLI v1.0.0 (Claude Code Paradigm)</div>
+        <div class="term-line term-dim">// Files will be physically created on disk inside ./projects/</div>
+        <div class="term-line term-cyan">&gt; Terminal cleared. Ready for next mission.</div>
+      `;
+    }
+    const progBar = document.getElementById('agent-progress-bar');
+    const progText = document.getElementById('agent-progress-text');
+    if (progBar) progBar.style.width = '0%';
+    if (progText) progText.innerText = 'Waiting for prompt to launch agent...';
+    const banner = document.getElementById('agent-launch-banner');
+    if (banner) banner.classList.add('hidden');
+  };
+
+  window.loadExistingProjects = async function() {
+    const shelfCount = document.getElementById('shelf-projects-count');
+    const grid = document.getElementById('agent-projects-grid');
+    if (!grid) return;
+
+    try {
+      const res = await fetch('/api/agent/projects');
+      if (!res.ok) return;
+      const data = await res.json();
+      const projects = data.projects || [];
+
+      if (shelfCount) shelfCount.innerText = projects.length;
+
+      if (projects.length === 0) {
+        grid.innerHTML = `
+          <div class="projects-empty-state">
+            <p>No local projects generated yet. Enter a prompt above and click "Run Autonomous Build"!</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = projects.map(p => {
+        const dateStr = p.created ? new Date(p.created).toLocaleString() : 'Recently';
+        const fileChips = (p.files || []).slice(0, 5).map(f => `<span class="file-chip">${f}</span>`).join('');
+        const moreFiles = (p.files || []).length > 5 ? `<span class="file-chip">+${p.files.length - 5} more</span>` : '';
+
+        return `
+          <div class="project-card">
+            <div class="project-card-top">
+              <div>
+                <div class="project-card-name">${p.name || p.slug}</div>
+                <div class="project-card-slug">./projects/${p.slug}/</div>
+              </div>
+              <span class="project-card-badge">${p.filesCount || (p.files ? p.files.length : 0)} Files</span>
+            </div>
+            <div class="project-card-files">
+              ${fileChips}
+              ${moreFiles}
+            </div>
+            <div class="project-card-actions">
+              <span class="project-card-date">🕒 ${dateStr}</span>
+              ${p.hasPreview ? `
+                <a href="${p.previewUrl}" target="_blank" class="project-preview-btn">
+                  <span>▶ Preview Live</span>
+                </a>
+              ` : `
+                <span style="font-size: 11px; color: #9ca3af;">Code only</span>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('Failed to load local projects:', err);
+    }
+  };
+
+  window.startAgentProjectBuild = async function() {
+    const promptEl = document.getElementById('agent-project-prompt');
+    const nameEl = document.getElementById('agent-project-name');
+    const stackEl = document.getElementById('agent-tech-stack');
+    const buildBtn = document.getElementById('btn-agent-build');
+    const buildBtnText = document.getElementById('btn-agent-build-text');
+    const termBody = document.getElementById('agent-terminal-output');
+    const progBar = document.getElementById('agent-progress-bar');
+    const progText = document.getElementById('agent-progress-text');
+    const statusBadge = document.getElementById('terminal-status-badge');
+    const launchBanner = document.getElementById('agent-launch-banner');
+
+    const prompt = promptEl ? promptEl.value.trim() : '';
+    const projectName = nameEl ? nameEl.value.trim() : '';
+    const techStack = stackEl ? stackEl.value : 'html-tailwind';
+
+    if (!prompt) {
+      alert("Please enter what you want to build or click one of the quick starter chips!");
+      if (promptEl) promptEl.focus();
+      return;
+    }
+
+    // Gather active user keys
+    const userKeys = {};
+    if (typeof providers !== 'undefined' && Array.isArray(providers)) {
+      providers.forEach(p => {
+        const el = document.getElementById(`key-${p.id}`);
+        if (el && el.value && el.value.trim()) {
+          userKeys[p.id] = el.value.trim();
+        }
+      });
+    }
+
+    buildBtn.disabled = true;
+    buildBtnText.innerText = "Building Project...";
+    if (statusBadge) {
+      statusBadge.innerText = "RUNNING";
+      statusBadge.className = "terminal-status-badge active";
+    }
+    if (launchBanner) launchBanner.classList.add('hidden');
+
+    function appendTerm(text, type = 'dim') {
+      if (!termBody) return;
+      const line = document.createElement('div');
+      line.className = `term-line term-${type}`;
+      line.innerHTML = text;
+      termBody.appendChild(line);
+      termBody.scrollTop = termBody.scrollHeight;
+    }
+
+    appendTerm(`------------------------------------------------------------`, 'dim');
+    appendTerm(`🚀 [MISSION INITIALIZED] ${new Date().toLocaleTimeString()}`, 'purple');
+    appendTerm(`Prompt: "${prompt.length > 80 ? prompt.slice(0, 80) + '...' : prompt}"`, 'cyan');
+    appendTerm(`Tech Stack: ${techStack}`, 'dim');
+
+    if (progBar) progBar.style.width = '10%';
+    if (progText) progText.innerText = 'Connecting to VENAR Indestructible Gateway...';
+
+    try {
+      const res = await fetch('/api/agent/generate-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, projectName, techStack, userKeys })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const rawJson = trimmed.replace(/^data:\s*/, '');
+          if (rawJson === '[DONE]') continue;
+
+          try {
+            const evt = JSON.parse(rawJson);
+            switch (evt.type) {
+              case 'init':
+                appendTerm(`📂 Initialized directory: ${evt.projectDir}`, 'cyan');
+                if (progBar) progBar.style.width = '15%';
+                if (progText) progText.innerText = `Workspace created at ./projects/${evt.slug}`;
+                break;
+
+              case 'planning_start':
+                appendTerm(`🧠 Architecture Planning: Analyzing requirements & scaffolding components...`, 'yellow');
+                if (progBar) progBar.style.width = '25%';
+                if (progText) progText.innerText = 'Scaffolding project architecture...';
+                break;
+
+              case 'plan_ready':
+                appendTerm(`📋 Architecture Plan Approved: <strong>${evt.plan.title}</strong>`, 'green');
+                if (evt.plan.summary) appendTerm(`   Summary: ${evt.plan.summary}`, 'dim');
+                if (Array.isArray(evt.plan.files)) {
+                  evt.plan.files.forEach(f => {
+                    appendTerm(`   • ${f.path} &mdash; <span class="term-dim">${f.purpose}</span>`, 'cyan');
+                  });
+                }
+                if (progBar) progBar.style.width = '35%';
+                if (progText) progText.innerText = `Plan locked. Generating ${evt.plan.files.length} production files...`;
+                break;
+
+              case 'file_start':
+                appendTerm(`⚙️ Writing [${evt.index}/${evt.total}]: <strong>${evt.file}</strong>...`, 'yellow');
+                if (progBar && evt.total) {
+                  const pct = 35 + Math.round((evt.index / (evt.total + 1)) * 55);
+                  progBar.style.width = `${pct}%`;
+                }
+                if (progText) progText.innerText = `Synthesizing ${evt.file} (${evt.purpose})...`;
+                break;
+
+              case 'file_done':
+                appendTerm(`✓ [SAVED] <strong>${evt.file}</strong> (${evt.lines} lines, ${(evt.bytes / 1024).toFixed(1)} KB) via <span class="term-green">${evt.provider}/${evt.model}</span>`, 'green');
+                break;
+
+              case 'file_error':
+                appendTerm(`⚠ [ERROR] Failed writing ${evt.file}: ${evt.error}`, 'red');
+                break;
+
+              case 'complete':
+                appendTerm(`🎉 <strong>MISSION COMPLETE!</strong> All files successfully written to disk.`, 'green');
+                if (progBar) progBar.style.width = '100%';
+                if (progText) progText.innerText = `Build complete! Preview ready at ${evt.result.previewUrl}`;
+
+                if (launchBanner) {
+                  launchBanner.classList.remove('hidden');
+                  const link = document.getElementById('launch-preview-link');
+                  const nameLabel = document.getElementById('launch-project-name');
+                  const subLabel = document.getElementById('launch-project-sub');
+                  if (link) link.href = evt.result.previewUrl;
+                  if (nameLabel) nameLabel.innerText = `Project Ready: ${evt.result.slug}`;
+                  if (subLabel) subLabel.innerText = `${evt.result.filesCount} files generated in ./projects/${evt.result.slug}/`;
+                }
+
+                window.loadExistingProjects();
+                break;
+
+              case 'error':
+                appendTerm(`❌ Agent Error: ${evt.message}`, 'red');
+                if (progText) progText.innerText = `Error: ${evt.message}`;
+                break;
+            }
+          } catch (parseErr) {
+            // Ignore malformed chunks
+          }
+        }
+      }
+
+    } catch (netErr) {
+      appendTerm(`❌ Network/Execution Failure: ${netErr.message}`, 'red');
+      if (progText) progText.innerText = `Failed: ${netErr.message}`;
+    } finally {
+      buildBtn.disabled = false;
+      buildBtnText.innerText = "Run Autonomous Build";
+      if (statusBadge) {
+        statusBadge.innerText = "READY";
+        statusBadge.className = "terminal-status-badge";
+      }
+    }
+  };
+
+  // Initial load of existing projects
+  window.loadExistingProjects();
+

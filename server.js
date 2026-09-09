@@ -3,11 +3,16 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { encryptPayload, decryptPayload, encodeStatelessKey, decodeStatelessKey } = require('./crypto-utils');
+const { generateProject, listProjects, PROJECTS_DIR } = require('./agent-engine');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.set('trust proxy', 1);
+
+// Serve frontend UI and local projects workspace
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/projects', express.static(PROJECTS_DIR));
 
 // Persistent database of user virtual keys mapped to their encrypted provider keys
 const KEYS_FILE = process.env.VERCEL
@@ -145,6 +150,7 @@ setTimeout(() => {
 }, 1500);
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/projects', express.static(PROJECTS_DIR));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -338,6 +344,46 @@ app.get('/v1/models', (req, res) => {
     }))
   });
 });
+// ==========================================
+// AUTONOMOUS LOCAL CODE AGENT API (OPTION B)
+// ==========================================
+app.get('/api/agent/projects', (req, res) => {
+  res.json({ success: true, projects: listProjects() });
+});
+
+app.post('/api/agent/generate-project', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const { prompt, projectName, techStack, userKeys } = req.body;
+  if (!prompt || !prompt.trim()) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: 'Project prompt is required.' })}\n\n`);
+    res.end();
+    return;
+  }
+
+  const PORT = process.env.PORT || 8080;
+
+  try {
+    await generateProject({
+      prompt,
+      projectName,
+      techStack: techStack || 'html-tailwind',
+      userKeys: userKeys || {},
+      port: PORT,
+      onProgress: (evt) => {
+        res.write(`data: ${JSON.stringify(evt)}\n\n`);
+      }
+    });
+    res.write(`data: [DONE]\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+    res.end();
+  }
+});
 
 // Prompt categorization engine
 function determineCategory(messages) {
@@ -402,6 +448,21 @@ app.post('/v1/chat/completions', async (req, res) => {
     if (process.env.OPENROUTER_API_KEY) demo.openrouter = process.env.OPENROUTER_API_KEY;
     if (Object.keys(demo).length > 0) {
       userKeys = demo;
+    }
+  }
+
+  // 5. Saved Local Keys Fallback: check keysDatabase on disk
+  if (!userKeys || Object.keys(userKeys).length === 0) {
+    const registered = Object.values(keysDatabase);
+    for (const rec of registered) {
+      if (rec) {
+        const dec = decryptPayload(rec);
+        if (dec && Object.keys(dec).length > 0) {
+          userKeys = dec;
+          if (!preferredOrder.length && rec.preferredOrder) preferredOrder = rec.preferredOrder;
+          break;
+        }
+      }
     }
   }
 

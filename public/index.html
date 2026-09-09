@@ -46,7 +46,24 @@
   <header>
     <div class="container header-container">
       <div class="logo">
-        <img src="logo.png" alt="Venar Logo" class="logo-img">
+        <svg class="venar-vector-logo" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="16" stroke="url(#venar-logo-glow)" stroke-width="2" stroke-dasharray="4 2"/>
+          <path d="M11 11L18 25L25 11" stroke="url(#venar-logo-grad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="18" cy="18" r="3" fill="#0284c7"/>
+          <circle cx="11" cy="11" r="2" fill="#7c3aed"/>
+          <circle cx="25" cy="11" r="2" fill="#ec4899"/>
+          <defs>
+            <linearGradient id="venar-logo-grad" x1="11" y1="11" x2="25" y2="25" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#7c3aed"/>
+              <stop offset="0.5" stop-color="#0284c7"/>
+              <stop offset="1" stop-color="#ec4899"/>
+            </linearGradient>
+            <linearGradient id="venar-logo-glow" x1="2" y1="2" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#7c3aed" stop-opacity="0.8"/>
+              <stop offset="1" stop-color="#0284c7" stop-opacity="0.8"/>
+            </linearGradient>
+          </defs>
+        </svg>
         <span class="logo-text">VENAR</span>
       </div>
       <div style="display: flex; gap: 16px; align-items: center;">
@@ -58,10 +75,17 @@
 
   <main class="container">
     <section class="hero-section">
-      <h1 class="hero-title" style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap;">
-        <canvas id="particle-canvas" style="cursor: crosshair;"></canvas>
-        <span class="premium-pill">One Unified Venar.</span>
+      <div class="hero-badge-pill-top">
+        <span class="live-dot-pulse"></span>
+        <span>UNIVERSAL FREE AI GATEWAY & LOCAL AUTONOMOUS AGENT</span>
+      </div>
+      <h1 class="hero-title">
+        <span class="gradient-text-hero">One Unified Venar.</span>
+        <span class="hero-subtitle-block">106+ Frontier Free Models • Zero-Bill Coding Agent</span>
       </h1>
+      <p class="hero-lead-desc">
+        Aggregate 10+ global cloud free tiers into one indestructible pipe. Build full-stack websites and eliminate 429 rate-limit crashes with multi-model fallback.
+      </p>
     </section>
 
     <!-- Provider Marketplace -->
@@ -328,6 +352,144 @@
         </div>
       </div>
     </div>
+
+    <!-- ========================================================= -->
+    <!-- VENAR CODE: CLAUDE CODE-STYLE AUTONOMOUS PROJECT BUILDER -->
+    <!-- ========================================================= -->
+    <section class="agent-builder-section" id="agent-builder">
+      <div class="agent-header-wrapper">
+        <div class="agent-badge-pill">
+          <span class="agent-badge-glow"></span>
+          <span>⚡ OPTION B • VENAR CODE AUTONOMOUS AGENT</span>
+        </div>
+        <h2 class="agent-section-title">
+          Claude Code-Style Local Website & App Builder
+        </h2>
+        <p class="agent-section-desc">
+          Generate complete production-ready web apps directly onto your local disk (<code>./projects/</code>). Powered by VENAR's indestructible multi-model fallback (Claude 3.5 Sonnet → Qwen 2.5 Coder → DeepSeek R1 → Gemini 2.5 Pro) with <strong>100% free unlimited tokens</strong>.
+        </p>
+      </div>
+
+      <div class="agent-workspace-grid">
+        <!-- Agent Controls & Prompt Config Panel -->
+        <div class="agent-panel agent-config-panel">
+          <div class="panel-top-bar">
+            <span class="panel-icon">🛠</span>
+            <span class="panel-title">Project Mission Prompt</span>
+            <span class="panel-tag">Autonomous Synthesis</span>
+          </div>
+
+          <!-- Quick Starter Chips -->
+          <div class="agent-presets-wrap">
+            <span class="preset-label">Quick Starters:</span>
+            <button class="preset-chip" type="button" onclick="applyAgentPreset('pomodoro')">⏱ Pomodoro Timer</button>
+            <button class="preset-chip" type="button" onclick="applyAgentPreset('saas')">🚀 AI SaaS Landing</button>
+            <button class="preset-chip" type="button" onclick="applyAgentPreset('crypto')">📊 Crypto Tracker</button>
+            <button class="preset-chip" type="button" onclick="applyAgentPreset('kanban')">📝 Kanban Board</button>
+            <button class="preset-chip" type="button" onclick="applyAgentPreset('arcade')">🎮 Cyberpunk Arcade</button>
+          </div>
+
+          <div class="agent-form-group">
+            <label for="agent-project-prompt">What do you want to build?</label>
+            <textarea id="agent-project-prompt" class="agent-textarea" rows="4" placeholder="e.g. Build a modern Pomodoro Productivity Timer with customizable work/break cycles, ambient audio soundscapes, dark glassmorphic UI, task checklist, and session history statistics."></textarea>
+          </div>
+
+          <div class="agent-inputs-row">
+            <div class="agent-form-group flex-1">
+              <label for="agent-project-name">Project Folder Slug (Optional)</label>
+              <input type="text" id="agent-project-name" class="agent-input" placeholder="e.g. pomodoro-flow-app" />
+            </div>
+            <div class="agent-form-group flex-1">
+              <label for="agent-tech-stack">Tech Architecture</label>
+              <select id="agent-tech-stack" class="agent-select">
+                <option value="html-tailwind">HTML5 + Tailwind CSS + Vanilla JS (Zero Dependency)</option>
+                <option value="react-standalone">Single-File React 18 + Babel + Lucide Icons</option>
+                <option value="vue-standalone">Vue 3 + Tailwind CSS + Canvas Animations</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="agent-actions-row">
+            <button id="btn-agent-build" class="agent-primary-btn" type="button" onclick="startAgentProjectBuild()">
+              <span class="btn-icon">⚡</span>
+              <span id="btn-agent-build-text">Run Autonomous Build</span>
+            </button>
+            <button id="btn-agent-refresh" class="agent-secondary-btn" type="button" onclick="loadExistingProjects()">
+              <span>🔄 Refresh Projects</span>
+            </button>
+          </div>
+
+          <!-- Active Fallback Engine Status Pill -->
+          <div class="agent-engine-status-box">
+            <div class="status-indicator-dot online"></div>
+            <div class="status-meta">
+              <div class="status-meta-title">INDESTRUCTIBLE CODE PIPELINE</div>
+              <div class="status-meta-desc">Automatic Fallback Active: Qwen 2.5 Coder 32B ⇄ DeepSeek R1 ⇄ Claude 3.5 Sonnet ⇄ Gemini 2.5 Pro</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agent Live Terminal Output -->
+        <div class="agent-panel agent-terminal-panel">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="terminal-title">venar-code &mdash; live autonomous agent process</div>
+            <div class="terminal-badges">
+              <span class="terminal-status-badge" id="terminal-status-badge">STANDBY</span>
+              <button class="terminal-clear-btn" type="button" onclick="clearAgentTerminal()">Clear</button>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="agent-progress-container" id="agent-progress-container">
+            <div class="agent-progress-bar" id="agent-progress-bar"></div>
+            <span class="agent-progress-text" id="agent-progress-text">Waiting for prompt to launch agent...</span>
+          </div>
+
+          <!-- ANSI Terminal Logs -->
+          <div class="terminal-body" id="agent-terminal-output">
+            <div class="term-line term-dim">// VENAR Autonomous Agent CLI v1.0.0 (Claude Code Paradigm)</div>
+            <div class="term-line term-dim">// Files will be physically created on disk inside ./projects/</div>
+            <div class="term-line term-cyan">&gt; Ready. Enter a prompt and click "Run Autonomous Build".</div>
+          </div>
+
+          <!-- Post-build Quick Launch Banner -->
+          <div class="agent-launch-banner hidden" id="agent-launch-banner">
+            <div class="launch-banner-left">
+              <span class="launch-icon">🚀</span>
+              <div>
+                <strong id="launch-project-name">Project Ready!</strong>
+                <div class="launch-sub" id="launch-project-sub">Files written to disk. Click to test live.</div>
+              </div>
+            </div>
+            <a id="launch-preview-link" href="#" target="_blank" class="agent-launch-btn">
+              ▶ Open Live In Browser
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Local Projects Repository Shelf -->
+      <div class="agent-projects-shelf">
+        <div class="shelf-header">
+          <div class="shelf-title-wrap">
+            <span class="shelf-icon">📁</span>
+            <h3>Locally Generated Projects (<span id="shelf-projects-count">0</span>)</h3>
+          </div>
+          <span class="shelf-note">Disk Path: <code>./projects/&lt;project-slug&gt;/</code></span>
+        </div>
+
+        <div class="projects-grid" id="agent-projects-grid">
+          <div class="projects-empty-state">
+            <p>No local projects generated yet. Run your first build above!</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
   </main>
 
