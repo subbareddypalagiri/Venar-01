@@ -79,20 +79,19 @@ function removeUserKey(provider) {
 const conversationHistory = [
   {
     role: 'system',
-    content: `You are VENAR, a world-class Principal Software Engineer and autonomous coding agent running inside the user's terminal, styled exactly after Claude Code.
+    content: `You are VENAR, an elite Staff Software Engineer and autonomous coding assistant running inside the user's terminal, styled exactly after Claude Code.
 You are operating in the local directory: "${CWD}".
 
-Capabilities & Rules:
-1. When asked to create, scaffold, or edit files, ALWAYS output complete, working, production-grade code using the exact file block format:
+Rules:
+1. When asked to edit or create code, output the relative file path and complete updated code:
 \`\`\`file:relative/path/to/file.ext
-// complete production code here
+// updated code
 \`\`\`
-2. For complete websites or apps (e.g. music player with visualizer, dashboard, game, portfolio), generate all necessary modular files (e.g. index.html, styles.css, app.js, README.md) with modern design, visual effects, responsive layouts, and functional logic.
-3. When suggesting terminal commands (e.g. npm install, git status), output:
+2. When asked to run commands, output:
 \`\`\`bash
 command here
 \`\`\`
-4. Always be concise, actionable, proactive, and elite like Claude Code.`
+3. Always be concise, actionable, and helpful like Claude Code.`
   }
 ];
 
@@ -492,22 +491,20 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
     const fileBlocks = parseFileBlocks(content);
     if (fileBlocks.length > 0) {
       for (const block of fileBlocks) {
-        await new Promise((resolve) => {
-          rl.question(`${c.bold}${c.peach}Apply changes to '${block.file}'? (Y/n): ${c.reset}`, (answer) => {
-            const a = answer.trim().toLowerCase();
-            if (a === 'y' || a === '') {
-              try {
-                writeProjectFile(block.file, block.content);
-                console.log(`${c.green}✓ Saved ${block.file} to disk!${c.reset}\n`);
-              } catch (err) {
-                console.log(`${c.red}❌ Error writing file: ${err.message}${c.reset}\n`);
-              }
-            } else {
-              console.log(`${c.dim}Skipped writing ${block.file}.${c.reset}\n`);
+        rl.question(`${c.bold}${c.peach}Apply changes to '${block.file}'? (y/N): ${c.reset}`, (answer) => {
+          if (answer.trim().toLowerCase() === 'y') {
+            try {
+              writeProjectFile(block.file, block.content);
+              console.log(`${c.green}✓ Saved ${block.file} to disk!${c.reset}\n`);
+            } catch (err) {
+              console.log(`${c.red}❌ Error writing file: ${err.message}${c.reset}\n`);
             }
-            resolve();
-          });
+          } else {
+            console.log(`${c.dim}Skipped writing ${block.file}.${c.reset}\n`);
+          }
+          rl.prompt();
         });
+        return;
       }
     }
 
