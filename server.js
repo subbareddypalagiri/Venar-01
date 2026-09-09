@@ -439,6 +439,19 @@ app.post('/v1/chat/completions', async (req, res) => {
     } catch (e) {}
   }
 
+  // 3b. Local User Config (~/.venar/keys.json)
+  if (!userKeys || Object.keys(userKeys).length === 0) {
+    try {
+      const userCfgPath = path.join(os.homedir(), '.venar', 'keys.json');
+      if (fs.existsSync(userCfgPath)) {
+        const fileContent = JSON.parse(fs.readFileSync(userCfgPath, 'utf8'));
+        if (fileContent && typeof fileContent === 'object') {
+          userKeys = fileContent;
+        }
+      }
+    } catch (e) {}
+  }
+
   // 4. Demo Fallback: check if server environment has shared sandbox keys
   if (!userKeys || Object.keys(userKeys).length === 0) {
     const demo = {};
@@ -446,21 +459,31 @@ app.post('/v1/chat/completions', async (req, res) => {
     if (process.env.GEMINI_API_KEY) demo.gemini = process.env.GEMINI_API_KEY;
     if (process.env.GITHUB_TOKEN) demo.github = process.env.GITHUB_TOKEN;
     if (process.env.OPENROUTER_API_KEY) demo.openrouter = process.env.OPENROUTER_API_KEY;
+    if (process.env.MISTRAL_API_KEY) demo.mistral = process.env.MISTRAL_API_KEY;
+    if (process.env.CEREBRAS_API_KEY) demo.cerebras = process.env.CEREBRAS_API_KEY;
     if (Object.keys(demo).length > 0) {
       userKeys = demo;
     }
   }
 
-  // 5. Saved Local Keys Fallback: check keysDatabase on disk
+  // 5. Saved Local Keys Fallback: check keysDatabase on disk (skipping mock/test placeholders)
   if (!userKeys || Object.keys(userKeys).length === 0) {
     const registered = Object.values(keysDatabase);
     for (const rec of registered) {
       if (rec) {
         const dec = decryptPayload(rec);
         if (dec && Object.keys(dec).length > 0) {
-          userKeys = dec;
-          if (!preferredOrder.length && rec.preferredOrder) preferredOrder = rec.preferredOrder;
-          break;
+          const cleaned = {};
+          for (const [k, v] of Object.entries(dec)) {
+            if (typeof v === 'string' && !v.toLowerCase().includes('test1234') && !v.toLowerCase().includes('mock')) {
+              cleaned[k] = v;
+            }
+          }
+          if (Object.keys(cleaned).length > 0) {
+            userKeys = cleaned;
+            if (!preferredOrder.length && rec.preferredOrder) preferredOrder = rec.preferredOrder;
+            break;
+          }
         }
       }
     }
@@ -513,20 +536,46 @@ app.post('/v1/chat/completions', async (req, res) => {
       candidates = candidates.filter(c => c.p.toLowerCase() === effectivePinnedProvider);
     }
   } else {
-    // Auto-cascade mode
+    // Auto-cascade mode across the ENTIRE 87+ Model Catalog & Dynamic Live Free Models
     const category = determineCategory(messages);
-    const categoryFallbacks = SYSTEM_MODELS[category] || SYSTEM_MODELS.general;
     
-    if (candidates.length === 0) {
-      candidates = [...categoryFallbacks];
-    } else {
-      // Append category fallbacks as resilience safety net
-      categoryFallbacks.forEach(f => {
-        if (!candidates.some(c => c.p === f.p && c.m === f.m)) {
-          candidates.push({ p: f.p, m: f.m, isFallback: true });
-        }
-      });
-    }
+    // Tier 1: Category Specialists from allModels (87+ verified models)
+    const categoryMatched = allModels.filter(m => 
+      m.tags && (
+        m.tags.includes(category) || 
+        (category === 'coding' && (m.tags.includes('coding') || m.tags.includes('code'))) ||
+        (category === 'reasoning' && (m.tags.includes('reasoning') || m.tags.includes('cot')))
+      )
+    );
+
+    categoryMatched.forEach(m => {
+      if (m.routes) {
+        m.routes.forEach(r => {
+          if (!candidates.some(c => c.p === r.p && c.m === r.m)) {
+            candidates.push({ p: r.p, m: r.m, label: r.label, isFallback: true, modelId: m.id });
+          }
+        });
+      }
+    });
+
+    // Tier 2: System Fast Fallbacks
+    const categoryFallbacks = SYSTEM_MODELS[category] || SYSTEM_MODELS.general;
+    categoryFallbacks.forEach(f => {
+      if (!candidates.some(c => c.p === f.p && c.m === f.m)) {
+        candidates.push({ p: f.p, m: f.m, isFallback: true });
+      }
+    });
+
+    // Tier 3: Universal Redundancy across ALL remaining models in catalog (87+ models)
+    allModels.forEach(m => {
+      if (m.routes) {
+        m.routes.forEach(r => {
+          if (!candidates.some(c => c.p === r.p && c.m === r.m)) {
+            candidates.push({ p: r.p, m: r.m, label: r.label, isFallback: true, modelId: m.id });
+          }
+        });
+      }
+    });
 
     // If pinned provider is specified, prioritize it at the top
     if (effectivePinnedProvider && effectivePinnedProvider !== 'auto') {
@@ -555,6 +604,7 @@ app.post('/v1/chat/completions', async (req, res) => {
   }
 
   const failureReasons = [];
+  const attemptedRoutes = [];
 
   for (const c of candidates) {
     const provider = c.p;
@@ -571,6 +621,7 @@ app.post('/v1/chat/completions', async (req, res) => {
     const config = PROVIDER_ENDPOINTS[provider];
     if (!config) continue;
 
+    attemptedRoutes.push({ provider, model: modelName, isFallback: !!c.isFallback });
     console.log(`[Engine] Routing -> Provider: ${provider} | Model: ${modelName} | Stream: ${stream}`);
     if (metrics.providerStats[provider]) metrics.providerStats[provider].requests++;
 
@@ -1240,6 +1291,7 @@ app.post('/v1/chat/completions', async (req, res) => {
 
         res.setHeader('X-Venar-Provider', provider);
         res.setHeader('X-Venar-Model', modelName);
+        res.setHeader('X-Venar-Fallback-Chain', encodeURIComponent(JSON.stringify(attemptedRoutes)));
         if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
 
         return res.json({
@@ -1251,6 +1303,7 @@ app.post('/v1/chat/completions', async (req, res) => {
             provider,
             model: modelName,
             is_fallback: !!c.isFallback,
+            attempts: attemptedRoutes,
             latency_ms: latency
           },
           choices: [{ index: 0, message: { role: "assistant", content: responseText }, finish_reason: "stop" }]
