@@ -269,6 +269,17 @@ document.getElementById('btn-generate-api').addEventListener('click', async () =
       localStorage.setItem('venar_virtual_key', data.virtualKey);
       localStorage.setItem('venar_endpoint', finalEndpoint);
 
+      // Auto-sync client keys to local ~/.venar/keys.json on user's machine (Zero CLI setup friction)
+      try {
+        fetch('/api/sync-local-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys: payload })
+        }).then(r => r.json()).then(res => {
+          console.log('[LocalSync] Synchronized keys to local terminal:', res);
+        }).catch(e => console.warn('[LocalSync] Offline notice:', e.message));
+      } catch (e) {}
+
       const resultBox = document.getElementById('result-box');
       resultBox.classList.remove('hidden');
       resultBox.scrollIntoView({ behavior: 'smooth' });
@@ -742,6 +753,23 @@ for await (const chunk of stream) {
     "messages": [{"role": "user", "content": "Hello Venar!"}],
     "stream": true
   }'`;
+  } else if (activeSdkTab === 'cli') {
+    display.innerText = `# ==============================================================================
+# VENAR CODE (CLAUDE CODE STYLE AUTONOMOUS TERMINAL AGENT)
+# Runs directly in any project folder on your computer.
+# Uses your compiled 108-model multi-cloud fallback engine with 0 token bill.
+# ==============================================================================
+
+# 1-Click Launch (Double-click downloaded batch launcher):
+Download: /api/download-launcher
+
+# Or run directly in any terminal:
+venar
+
+# Inside VENAR Code:
+> /model deepseek-r1
+> Build a modern music player with visualizer and glassmorphism
+> /cost`;
   }
 }
 
@@ -1003,7 +1031,7 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
   const thread = document.getElementById('studio-chat-thread');
   const sendBtn = document.getElementById('btn-send-play');
   const stopBtn = document.getElementById('btn-stop-play');
-  const selectedModel = document.getElementById('play-model-select')?.value || 'auto';
+  const selectedModel = window.currentSelectedModel || document.getElementById('play-model-select')?.value || 'auto';
   const systemPrompt = document.getElementById('param-system-prompt')?.value.trim();
   const temperature = parseFloat(document.getElementById('param-temp')?.value || '0.7');
   const maxTokens = parseInt(document.getElementById('param-max-tokens')?.value || '2048');
@@ -1576,4 +1604,300 @@ document.getElementById('btn-send-play').addEventListener('click', async () => {
 
   // Initial load of existing projects
   window.loadExistingProjects();
+
+// ==============================================================================
+// 🔑 FREE API GATEWAY HUB MODAL CONTROLLER (Situation 1)
+// ==============================================================================
+window.toggleApiHubModal = function(show) {
+  const modal = document.getElementById('api-hub-modal');
+  if (!modal) return;
+  if (show) {
+    // Pre-fill existing keys if present
+    const providersList = ['gemini', 'groq', 'github', 'openrouter', 'mistral', 'cerebras'];
+    providersList.forEach(p => {
+      const existing = document.getElementById(`key-${p}`)?.value || '';
+      const quickInput = document.getElementById(`quick-key-${p}`);
+      if (quickInput && existing) quickInput.value = existing;
+    });
+    modal.classList.remove('hidden');
+  } else {
+    modal.classList.add('hidden');
+  }
+};
+
+window.saveAllQuickHubKeys = async function() {
+  const providersList = ['gemini', 'groq', 'github', 'openrouter', 'mistral', 'cerebras'];
+  let savedCount = 0;
+
+  providersList.forEach(p => {
+    const quickInput = document.getElementById(`quick-key-${p}`);
+    const keyVal = quickInput ? quickInput.value.trim() : '';
+    if (keyVal) {
+      const mainInput = document.getElementById(`key-${p}`);
+      if (mainInput) mainInput.value = keyVal;
+      savedCount++;
+    }
+  });
+
+  saveKeysToStorage();
+  window.toggleApiHubModal(false);
+
+  // Trigger key verification and compilation
+  const compileBtn = document.getElementById('btn-generate-api');
+  if (compileBtn) compileBtn.click();
+
+  alert(`✓ Successfully saved ${savedCount} API keys to vault! Compiling your unified 108-model engine...`);
+};
+
+// ==============================================================================
+// 🌟 SLEEK FLOATING MODEL PICKER CONTROLLER (Exact Image 1 Style)
+// ==============================================================================
+window.currentSelectedModel = 'gemini-2.5-flash';
+let activeModelPickerCategory = 'all';
+
+window.initSleekModelPicker = function() {
+  const triggerBtn = document.getElementById('btn-trigger-model-picker');
+  const popup = document.getElementById('sleek-model-popup');
+  const searchInput = document.getElementById('model-search-input');
+  const catPills = document.querySelectorAll('.popup-category-tabs .cat-pill');
+
+  if (!triggerBtn || !popup) return;
+
+  // Toggle Popup
+  triggerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = popup.classList.contains('hidden');
+    if (isHidden) {
+      popup.classList.remove('hidden');
+      triggerBtn.classList.add('active');
+      renderSleekModelList();
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+    } else {
+      popup.classList.add('hidden');
+      triggerBtn.classList.remove('active');
+    }
+  });
+
+  // Close when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!popup.contains(e.target) && !triggerBtn.contains(e.target)) {
+      popup.classList.add('hidden');
+      triggerBtn.classList.remove('active');
+    }
+  });
+
+  // Search Filtering
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      renderSleekModelList();
+    });
+  }
+
+  // Category Tabs
+  catPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      catPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeModelPickerCategory = pill.getAttribute('data-cat') || 'all';
+      renderSleekModelList();
+    });
+  });
+
+  // Initial render
+  renderSleekModelList();
+};
+
+function renderSleekModelList() {
+  const listEl = document.getElementById('popup-models-list');
+  if (!listEl) return;
+
+  const searchInput = document.getElementById('model-search-input');
+  const query = (searchInput?.value || '').toLowerCase().trim();
+
+  // Combine catalog models with any user-configured keys
+  const models = Array.isArray(allCatalogModels) && allCatalogModels.length > 0 
+    ? allCatalogModels 
+    : [
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', family: 'Google', speed: '~140 t/s', tags: ['fast', 'high'], desc: 'Next-Gen Frontier Flash' },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', family: 'Google', speed: '~80 t/s', tags: ['reasoning', 'high'], desc: '2M Context Frontier Reasoning' },
+        { id: 'deepseek-r1', name: 'DeepSeek R1', family: 'DeepSeek', speed: '~80 t/s', tags: ['reasoning', 'thinking'], desc: 'Open-weights full chain-of-thought reasoning' },
+        { id: 'qwen-2-5-coder-32b', name: 'Qwen 2.5 Coder 32B', family: 'Qwen', speed: '~110 t/s', tags: ['coding', 'code'], desc: 'Elite multi-language code generation' },
+        { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', family: 'Anthropic', speed: '~85 t/s', tags: ['reasoning', 'high'], desc: 'Frontier reasoning and coding' },
+        { id: 'gpt-4o', name: 'OpenAI GPT-4o', family: 'OpenAI', speed: '~95 t/s', tags: ['general', 'high'], desc: 'Omni intelligence' },
+        { id: 'llama-3-3-70b', name: 'Meta Llama 3.3 70B', family: 'Meta', speed: '~350 t/s', tags: ['fast', 'high'], desc: 'High-throughput open weights' },
+        { id: 'codestral-2501', name: 'Codestral 2501', family: 'Mistral', speed: '~130 t/s', tags: ['coding', 'code'], desc: 'Mistral state-of-the-art coding' }
+      ];
+
+  const filtered = models.filter(m => {
+    // Category filter
+    if (activeModelPickerCategory === 'coding' && !m.tags.includes('coding') && !m.tags.includes('code')) return false;
+    if (activeModelPickerCategory === 'reasoning' && !m.tags.includes('reasoning') && !m.tags.includes('cot') && !m.tags.includes('thinking')) return false;
+    if (activeModelPickerCategory === 'fast' && !m.tags.includes('fast')) return false;
+    if (activeModelPickerCategory === 'active') {
+      const savedKeys = JSON.parse(localStorage.getItem('venar_saved_keys') || '{}');
+      const hasKey = m.routes && m.routes.some(r => !!savedKeys[r.p]);
+      if (!hasKey) return false;
+    }
+
+    // Text search filter
+    if (query) {
+      const matchName = (m.name || '').toLowerCase().includes(query);
+      const matchId = (m.id || '').toLowerCase().includes(query);
+      const matchFam = (m.family || '').toLowerCase().includes(query);
+      return matchName || matchId || matchFam;
+    }
+    return true;
+  });
+
+  listEl.innerHTML = '';
+
+  // 1. Always offer Smart Auto-Route Cascade at top
+  const isAuto = window.currentSelectedModel === 'auto';
+  const autoEl = document.createElement('div');
+  autoEl.className = `popup-model-item ${isAuto ? 'selected' : ''}`;
+  autoEl.innerHTML = `
+    <div class="model-item-left">
+      <span class="model-item-name">🤖 Auto-Route (Cascade Fallback)</span>
+      <span class="model-item-tag">108 Models</span>
+    </div>
+    <div class="model-item-right">
+      <span class="speed-badge-mini">Fastest</span>
+      ${isAuto ? '<span class="item-check">✓</span>' : ''}
+    </div>
+  `;
+  autoEl.onclick = () => window.selectModelFromPopup('auto', 'Auto-Route', 'Smart', 'Cascade');
+  listEl.appendChild(autoEl);
+
+  if (filtered.length === 0) {
+    listEl.innerHTML += `<div style="padding: 14px; text-align: center; color: #9ca3af; font-size: 12px;">No matching models found.</div>`;
+    return;
+  }
+
+  filtered.forEach(m => {
+    const isSel = window.currentSelectedModel === m.id;
+    const tag = m.tags.includes('reasoning') || m.tags.includes('thinking') 
+      ? 'Thinking' 
+      : (m.tags.includes('coding') || m.tags.includes('code') ? 'Code' : (m.tags.includes('fast') ? 'Fast' : 'High'));
+    const speed = m.speed ? m.speed.replace('~', '') : 'Fast';
+
+    const item = document.createElement('div');
+    item.className = `popup-model-item ${isSel ? 'selected' : ''}`;
+    item.innerHTML = `
+      <div class="model-item-left">
+        <span class="model-item-name">${m.name}</span>
+        <span class="model-item-tag">${m.family || 'AI'}</span>
+      </div>
+      <div class="model-item-right">
+        <span class="trigger-tag" style="font-size: 9px; padding: 2px 5px;">${tag}</span>
+        <span class="speed-badge-mini">${speed}</span>
+        <span class="info-icon-mini" title="${m.desc || m.name}">ℹ️</span>
+        ${isSel ? '<span class="item-check">✓</span>' : ''}
+      </div>
+    `;
+    item.onclick = () => window.selectModelFromPopup(m.id, m.name, tag, speed);
+    listEl.appendChild(item);
+  });
+}
+
+window.selectModelFromPopup = function(id, name, tag, speed) {
+  window.currentSelectedModel = id;
+
+  const nameEl = document.getElementById('trigger-model-name');
+  const tagEl = document.getElementById('trigger-model-tag');
+  const speedEl = document.getElementById('trigger-model-speed');
+  const triggerBtn = document.getElementById('btn-trigger-model-picker');
+  const popup = document.getElementById('sleek-model-popup');
+
+  if (nameEl) nameEl.innerText = name.length > 20 ? name.slice(0, 18) + '...' : name;
+  if (tagEl) tagEl.innerText = tag;
+  if (speedEl) speedEl.innerText = speed;
+
+  if (popup) popup.classList.add('hidden');
+  if (triggerBtn) triggerBtn.classList.remove('active');
+
+  // Sync traditional select
+  const sel = document.getElementById('play-model-select');
+  if (sel) sel.value = id;
+
+  renderSleekModelList();
+};
+
+// ==============================================================================
+// 🎙️ VOICE CONSULTATION (Speech-To-Text)
+// ==============================================================================
+window.initVoiceConsultation = function() {
+  const micBtn = document.getElementById('btn-voice-mic');
+  const inputEl = document.getElementById('play-input');
+  if (!micBtn || !inputEl) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    micBtn.title = "Voice recognition not supported in this browser";
+    micBtn.style.opacity = '0.5';
+    return;
+  }
+
+  let recognition = null;
+  let isListening = false;
+
+  micBtn.addEventListener('click', () => {
+    if (isListening) {
+      if (recognition) recognition.stop();
+      return;
+    }
+
+    try {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add('listening');
+        inputEl.placeholder = "Listening... speak now...";
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        inputEl.value = transcript;
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        isListening = false;
+        micBtn.classList.remove('listening');
+        inputEl.placeholder = "Ask Venar to code, build, or analyze...";
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        inputEl.placeholder = "Ask Venar to code, build, or analyze...";
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error('Speech recognition exception:', e);
+    }
+  });
+};
+
+// Copy CLI command helper
+window.copyCliCommand = function() {
+  navigator.clipboard.writeText('venar').then(() => {
+    alert("Copied 'venar' command to clipboard! Open terminal and paste to run.");
+  });
+};
+
+// Initialize Sleek Model Picker and Voice Consultation on DOM Load
+setTimeout(() => {
+  window.initSleekModelPicker();
+  window.initVoiceConsultation();
+}, 400);
 
