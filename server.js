@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { encryptPayload, decryptPayload, encodeStatelessKey, decodeStatelessKey } = require('./crypto-utils');
 const { generateProject, listProjects, PROJECTS_DIR } = require('./agent-engine');
 
@@ -344,6 +345,50 @@ app.get('/v1/models', (req, res) => {
     }))
   });
 });
+
+// Auto-sync client keys to local ~/.venar/keys.json (Zero CLI friction)
+app.post('/api/sync-local-keys', (req, res) => {
+  try {
+    const keys = req.body.keys || {};
+    const venarDir = path.join(os.homedir(), '.venar');
+    if (!fs.existsSync(venarDir)) fs.mkdirSync(venarDir, { recursive: true });
+    const keysPath = path.join(venarDir, 'keys.json');
+    let existing = {};
+    if (fs.existsSync(keysPath)) {
+      try { existing = JSON.parse(fs.readFileSync(keysPath, 'utf8')); } catch (e) {}
+    }
+    const merged = { ...existing, ...keys };
+    fs.writeFileSync(keysPath, JSON.stringify(merged, null, 2), 'utf8');
+    console.log(`[LocalSync] Synced ${Object.keys(keys).length} keys to ${keysPath}`);
+    res.json({ success: true, count: Object.keys(merged).length, path: keysPath });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1-Click Launcher Download for Windows
+app.get('/api/download-launcher', (req, res) => {
+  const batScript = `@echo off
+title VENAR Code - Autonomous Local AI Coding Agent
+color 0E
+echo ==============================================================================
+echo   VENAR CODE : Autonomous Local AI Coding Agent (Claude Code Style)
+echo ==============================================================================
+echo Connecting to local VENAR Gateway on port 8080...
+set VENAR_GATEWAY_URL=http://localhost:8080/v1/chat/completions
+where venar >nul 2>nul
+if %ERRORLEVEL% EQU 0 (
+    venar
+) else (
+    node "%~dp0venar-cli.js"
+)
+pause
+`;
+  res.setHeader('Content-Type', 'application/x-bat');
+  res.setHeader('Content-Disposition', 'attachment; filename="venar-launcher.bat"');
+  res.send(batScript);
+});
+
 // ==========================================
 // AUTONOMOUS LOCAL CODE AGENT API (OPTION B)
 // ==========================================
