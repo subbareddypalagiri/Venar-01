@@ -294,7 +294,6 @@ document.getElementById('btn-generate-api').addEventListener('click', async () =
   }
 });
 
-// Auto-Save and Restore Keys & State from localStorage
 function saveKeysToStorage() {
   const saved = {};
   providers.forEach(p => {
@@ -303,6 +302,19 @@ function saveKeysToStorage() {
   });
   localStorage.setItem('venar_saved_keys', JSON.stringify(saved));
   localStorage.setItem('venar_preferred_order', JSON.stringify(preferredOrder));
+
+  // Immediately sync keys to local machine ~/.venar/keys.json for terminal CLI
+  if (Object.keys(saved).length > 0) {
+    try {
+      fetch('/api/sync-local-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys: saved })
+      }).then(r => r.json()).then(res => {
+        console.log('[LocalSync] Instant background sync to ~/.venar/keys.json:', res);
+      }).catch(e => console.warn('[LocalSync] Offline notice:', e.message));
+    } catch (e) {}
+  }
 }
 
 function restoreSavedState() {
@@ -778,6 +790,10 @@ window.switchSdkTab = function(tabName) {
   document.querySelectorAll('.sdk-tab').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tab') === tabName);
   });
+  const cliCard = document.getElementById('cli-integration-card');
+  if (cliCard) {
+    cliCard.style.display = (tabName === 'cli') ? 'block' : 'none';
+  }
   updateSdkSnippet();
 };
 

@@ -70,6 +70,9 @@
         <button id="btn-open-api-hub" class="nav-btn-highlight" onclick="toggleApiHubModal(true)">
           <span class="btn-sparkle">✨</span> 🔑 Get Free APIs
         </button>
+        <a href="/api/download-launcher" class="nav-btn-download" download="venar-launcher.bat" title="Download 1-Click Venar Local Agent (.bat)">
+          <span>📥</span> Download Venar Local (.bat)
+        </a>
         <div class="badge-premium">Infinite Token Engine</div>
         <button id="btn-show-login" class="nav-btn">🔒 Master Lock</button>
       </div>
@@ -89,6 +92,17 @@
       <p class="hero-lead-desc">
         Aggregate 10+ global cloud free tiers into one indestructible pipe. Build full-stack websites and eliminate 429 rate-limit crashes with multi-model fallback.
       </p>
+      <div class="hero-actions-group" style="display: flex; gap: 14px; justify-content: center; align-items: center; margin-top: 22px; flex-wrap: wrap;">
+        <button class="hero-action-primary" onclick="toggleApiHubModal(true)">
+          <span class="btn-sparkle">✨</span> 🔑 Get 6 Free Cloud Keys
+        </button>
+        <a href="/api/download-launcher" class="hero-action-download" download="venar-launcher.bat" title="Download 1-Click Local Batch Launcher">
+          <span>📥</span> Download Venar Local (.bat)
+        </a>
+        <button class="hero-action-secondary" onclick="document.getElementById('model-catalog').scrollIntoView({ behavior: 'smooth' })">
+          <span>⚡</span> Explore 106+ Free Models
+        </button>
+      </div>
     </section>
 
     <!-- Provider Marketplace -->
@@ -232,6 +246,25 @@
         <div class="sdk-code-wrapper">
           <button class="sdk-copy-btn" onclick="copySdkCode()">📋 Copy Code</button>
           <pre><code id="sdk-code-display" class="sdk-code-block">// Loading code snippet...</code></pre>
+        </div>
+        <div id="cli-integration-card" class="cli-integration-box" style="display: none; margin-top: 15px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 26px;">💻</span>
+              <div>
+                <h4 style="margin: 0; font-size: 15px; color: #ffffff; font-weight: 800;">VENAR Local Autonomous Coding Agent (Claude Code Style)</h4>
+                <p style="margin: 3px 0 0 0; font-size: 12px; color: #9ca3af;">Runs directly in any folder on your machine. Synced with your browser's keys &amp; 108 fallback models.</p>
+              </div>
+            </div>
+            <div class="cli-buttons-row" style="margin-top: 0;">
+              <a href="/api/download-launcher" class="download-cli-btn" download="venar-launcher.bat" title="Download 1-Click Batch Launcher">
+                <span>📥</span> Download venar-launcher.bat
+              </a>
+              <button class="copy-cli-btn" onclick="navigator.clipboard.writeText('venar'); alert('Command copied to clipboard: venar');">
+                <span>⚡</span> Run Terminal: <code>venar</code>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

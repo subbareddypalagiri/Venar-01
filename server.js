@@ -368,9 +368,10 @@ app.post('/api/sync-local-keys', (req, res) => {
 
 // 1-Click Launcher Download for Windows
 app.get('/api/download-launcher', (req, res) => {
+  const cliPath = path.join(__dirname, 'venar-cli.js').replace(/\\/g, '\\');
   const batScript = `@echo off
 title VENAR Code - Autonomous Local AI Coding Agent
-color 0E
+color 0A
 echo ==============================================================================
 echo   VENAR CODE : Autonomous Local AI Coding Agent (Claude Code Style)
 echo ==============================================================================
@@ -379,8 +380,11 @@ set VENAR_GATEWAY_URL=http://localhost:8080/v1/chat/completions
 where venar >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
     venar
+) else if exist "${cliPath}" (
+    node "${cliPath}"
 ) else (
-    node "%~dp0venar-cli.js"
+    echo [VENAR] Could not locate 'venar' CLI or venar-cli.js.
+    echo Please make sure Node.js is installed or run 'npm link' inside your venar repo.
 )
 pause
 `;
