@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node server.js",
     "code": "node venar-code.js",
+    "venar": "node venar-cli.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "venar": "./venar-cli.js"
   },
   "keywords": [],
   "author": "",
