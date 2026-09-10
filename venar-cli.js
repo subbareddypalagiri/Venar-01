@@ -21,6 +21,7 @@ const visionQa = require('./vision-qa');
 const sidecarServer = require('./sidecar-server');
 const astSandbox = require('./ast-sandbox');
 const meshRouter = require('./mesh-router');
+const vectorRag = require('./vector-rag');
 
 const CWD = process.cwd();
 const GATEWAY_URL = process.env.VENAR_GATEWAY_URL || 'http://localhost:8080/v1/chat/completions';
@@ -925,7 +926,7 @@ ${c.peachBold}VENAR God-Tier AI Studio Commands:${c.reset}
   ${c.yellow}/mcp${c.reset}             - 🔌 30 World-Class MCP Servers (~/.venar/mcp.json)
   ${c.yellow}/connectors${c.reset}      - 🌐 30 Cloud Ecosystem Connectors (Supabase, Cloudflare, etc.)
   ${c.yellow}/agent <task>${c.reset}    - 🤖 Autonomous multi-turn ReAct agent loop
-  ${c.yellow}/outline${c.reset}         - 🗺️ View full project symbol outline & skeleton
+  ${c.yellow}/index${c.reset}           - ⚡ Sub-millisecond Vector & AST dependency index\n  ${c.yellow}/rag <query>${c.reset}     - 🎯 Okapi BM25 semantic chunk retrieval\n  ${c.yellow}/graph${c.reset}           - 🕸️ View codebase module dependency graph\n  ${c.yellow}/outline${c.reset}         - 🗺️ View full project symbol outline & skeleton
   ${c.yellow}/model [1-6]${c.reset}     - 🔄 Interactive model switcher (DeepSeek, Claude, Qwen)
   ${c.yellow}/serve [stop]${c.reset}    - 🌐 Launch instant live browser preview of project
   ${c.yellow}/debug <cmd>${c.reset}     - 🩹 Auto-execute command & autonomously self-heal errors
@@ -1044,6 +1045,27 @@ ${c.reset}`);
 
   
   // --- UNFAIR ADVANTAGES: SPATIAL SIDECAR & SOVEREIGN MESH ROUTER ---
+  
+  // --- LOCAL VECTOR GRAPH RAG ENGINE ---
+  if (query === '/index' || query === '/rag index') {
+    console.log('\n' + c.peachBold + 'Building Local Vector & Dependency Graph Index...' + c.reset);
+    const stats = vectorRag.buildOrUpdateIndex(CWD, true);
+    console.log(c.green + '✓ Vector Index Complete in ' + stats.timeMs + 'ms!' + c.reset);
+    console.log('  ' + c.dim + 'Indexed: ' + c.bold + stats.totalFiles + ' files' + c.reset + c.dim + ' · ' + c.bold + stats.totalChunks + ' semantic chunks' + c.reset + '\n');
+    return;
+  }
+
+  if (query.startsWith('/rag ')) {
+    const q = query.slice(5).trim();
+    vectorRag.printRagResults(q, CWD);
+    return;
+  }
+
+  if (query === '/graph') {
+    vectorRag.printGraphView(CWD);
+    return;
+  }
+
   if (query === '/sidecar' || query === '/spatial') {
     sidecarServer.startSidecar(3333, CWD, true);
     return;
@@ -1439,6 +1461,14 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
     }
   }
 
+
+  
+  // Inject semantic RAG chunks from Vector Engine
+  const ragChunks = vectorRag.queryVectorRag(query, 3, CWD);
+  if (ragChunks.length > 0) {
+    promptWithContext += '\n\nRelevant Semantic Code Chunks (Vector RAG):\n' +
+      ragChunks.map(chk => `--- ${chk.file} (L${chk.startLine}-L${chk.endLine} · ${chk.name}) ---\n${chk.content}\n--- End Chunk ---`).join('\n');
+  }
 
   conversationHistory.push({ role: 'user', content: promptWithContext });
   process.stdout.write(`\n${c.peach}⏳ Venar is thinking...${c.reset} `);
