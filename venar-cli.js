@@ -125,7 +125,7 @@ ${c.peach}  Tips for getting started${c.reset}
   Run ${c.yellow}/init${c.reset} to create a VENAR.md file with codebase instructions
   Run ${c.yellow}/key${c.reset} to manage free API keys (Groq, Gemini, GitHub, Mistral)
   Run ${c.yellow}/models${c.reset} to browse all 87+ free models in fallback catalog
-  Note: Connected to local VENAR Gateway on port 8080 (100% Free Tokens)
+  Gateway: Connected to Standalone Multi-Cloud Gateway (100% Free Tokens · No Server Needed)
 
 ${c.peach}  Recent activity${c.reset}
   ${c.dim}Autonomous multi-model router active (Claude 3.5 / DeepSeek R1 / Qwen 2.5 / Gemini)${c.reset}
@@ -524,18 +524,19 @@ async function callGateway(messages) {
     // 2. Standalone Claude Code Experience:
     // First try local gateway on 8080. If local server is not running,
     // seamlessly auto-fallback to the high-speed VENAR Cloud Gateway!
+    let probeTimer = null;
     try {
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 1500);
+      probeTimer = setTimeout(() => controller.abort(), 800);
       res = await fetch(LOCAL_GATEWAY_URL, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
         signal: controller.signal
       });
-      clearTimeout(t);
+      if (!res.ok) throw new Error(`Local gateway returned HTTP ${res.status}`);
     } catch (localErr) {
-      // Local server offline -> Seamless Cloud Route (Zero user friction!)
+      // Local server offline or busy -> Seamless Cloud Route (Zero user friction!)
       try {
         res = await fetch(CLOUD_GATEWAY_URL, {
           method: 'POST',
@@ -545,6 +546,8 @@ async function callGateway(messages) {
       } catch (cloudErr) {
         throw new Error(`Could not connect to local or cloud gateway: ${cloudErr.message}`);
       }
+    } finally {
+      if (probeTimer) clearTimeout(probeTimer);
     }
   }
 
@@ -836,7 +839,7 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
   }
 
   // Shell Command Execution Support (e.g. !git status or !dir)
-  if (query.startsWith('!') || query.toLowerCase().startsWith('run ')) {
+    if (query.startsWith('!') || query.toLowerCase().startsWith('run ')) {
     const cmd = query.startsWith('!') ? query.slice(1).trim() : query.slice(4).trim();
     console.log(`\n${c.dim}> Executing: ${cmd}${c.reset}\n`);
     try {
@@ -851,6 +854,9 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
     return;
   }
 
+  // -----------------------------------------------------------------------------
+  // AI Query Handling: Context Assembly, Gateway Call & Diff Prompt
+  // -----------------------------------------------------------------------------
   const tree = getDirectoryTree(CWD);
   const mentionedFiles = [];
   for (const item of tree) {
@@ -871,29 +877,23 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
   }
 
   conversationHistory.push({ role: 'user', content: promptWithContext });
-
   process.stdout.write(`\n${c.peach}⏳ Venar is thinking...${c.reset} `);
 
   try {
     const { content, provider, model } = await callGateway(conversationHistory);
     process.stdout.write(`\r${c.green}✓ Responded via ${provider}/${model}:${c.reset}\n\n`);
-    process.stdout.write('\x07'); // Chime on completion
 
     totalTokensUsed += Math.ceil(content.length / 4);
-
     console.log(content);
     console.log();
-
     conversationHistory.push({ role: 'assistant', content });
 
     const fileBlocks = parseFileBlocks(content);
     if (fileBlocks.length > 0) {
       let createdWebPage = false;
       for (const block of fileBlocks) {
-        // Visual unified diff preview before applying
         const existing = readFileContent(block.file);
         renderDiff(existing, block.content, block.file);
-
         if (block.file.toLowerCase().endsWith('.html')) createdWebPage = true;
 
         await new Promise((resolve) => {
@@ -914,12 +914,10 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
           });
         });
       }
-
       if (createdWebPage) {
         console.log(`${c.cyan}💡 HTML project detected! Run ${c.bold}/serve${c.reset}${c.cyan} to open instant live browser preview.${c.reset}\n`);
       }
     }
-
   } catch (err) {
     console.log(`\r${c.red}❌ Error:${c.reset} ${err.message}\n`);
   }
@@ -951,7 +949,10 @@ if (process.argv.length > 2) {
   const inlineQuery = process.argv.slice(2).join(' ');
   const dummyRl = { question: (q, cb) => cb('y'), prompt: () => {} };
   handleUserQuery(inlineQuery, dummyRl).then(() => {
-    setTimeout(() => process.exit(0), 100);
+    process.exitCode = 0;
+  }).catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
   });
 } else {
   startREPL();

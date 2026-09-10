@@ -1196,15 +1196,10 @@ app.post('/v1/chat/completions', async (req, res) => {
       } 
       // 2. Google Gemini native spec
       else if (config.type === 'gemini') {
-        const geminiModelsToTry = [modelName];
-        if (modelName === 'gemini-2.0-flash' || modelName.includes('2.0-flash')) {
-          geminiModelsToTry.push('gemini-2.5-flash', 'gemini-1.5-flash');
-        } else if (modelName === 'gemini-1.5-pro') {
-          geminiModelsToTry.push('gemini-1.5-flash');
-        }
-
+        const geminiModelsToTry = [modelName, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'].filter((v, i, a) => a.indexOf(v) === i);
         let apiRes = null;
         let successfulGeminiModel = modelName;
+        let lastGeminiErr = '';
 
         for (const gModel of geminiModelsToTry) {
           const url = `${config.url}${gModel}:generateContent?key=${pKey}`;
@@ -1223,8 +1218,9 @@ app.post('/v1/chat/completions', async (req, res) => {
             })
           });
 
-          if (candidateRes.status === 404 && geminiModelsToTry.length > 1) {
-            console.warn(`[Engine] Gemini model ${gModel} not available (404). Cascading to newer version...`);
+          if ((candidateRes.status === 404 || !candidateRes.ok) && geminiModelsToTry.indexOf(gModel) < geminiModelsToTry.length - 1) {
+            console.warn(`[Engine] Gemini model ${gModel} returned status ${candidateRes.status}. Cascading to next Gemini version...`);
+            lastGeminiErr = `HTTP ${candidateRes.status} on ${gModel}`;
             continue;
           }
           apiRes = candidateRes;
