@@ -145,16 +145,24 @@ async function syncLiveFreeModels() {
   }
 }
 
-// Background live sync
-setTimeout(() => {
-  syncLiveFreeModels().catch(() => {});
-}, 1500);
+// Background live sync (runs only in long-running environments, skipped on serverless)
+if (!process.env.VERCEL) {
+  setTimeout(() => {
+    syncLiveFreeModels().catch(() => {});
+  }, 1500);
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/projects', express.static(PROJECTS_DIR));
+if (PROJECTS_DIR) {
+  app.use('/projects', express.static(PROJECTS_DIR));
+}
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  return res.send("VENAR AI Gateway is online.");
 });
 
 // Registration Endpoint (with Stateless Self-Contained AES-256-GCM Tokens)
@@ -349,6 +357,9 @@ app.get('/v1/models', (req, res) => {
 // Auto-sync client keys to local ~/.venar/keys.json (Zero CLI friction)
 app.post('/api/sync-local-keys', (req, res) => {
   try {
+    if (process.env.VERCEL) {
+      return res.json({ success: true, cloud: true, message: "Cloud serverless mode: keys stored in client session" });
+    }
     const keys = req.body.keys || {};
     const venarDir = path.join(os.homedir(), '.venar');
     if (!fs.existsSync(venarDir)) fs.mkdirSync(venarDir, { recursive: true });

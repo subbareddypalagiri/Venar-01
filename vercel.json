@@ -2,6 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.js": {
+      "includeFiles": "public/**",
       "maxDuration": 30
     }
   },
@@ -12,6 +13,10 @@
     },
     {
       "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/api/index.js"
     }
   ]

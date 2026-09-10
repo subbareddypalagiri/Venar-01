@@ -7,11 +7,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const PROJECTS_DIR = path.join(__dirname, 'projects');
+const PROJECTS_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'projects')
+  : path.join(__dirname, 'projects');
 
-// Ensure base projects root exists
-if (!fs.existsSync(PROJECTS_DIR)) {
-  fs.mkdirSync(PROJECTS_DIR, { recursive: true });
+// Ensure base projects root exists (safeguarded for read-only serverless filesystems)
+try {
+  if (!fs.existsSync(PROJECTS_DIR)) {
+    fs.mkdirSync(PROJECTS_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn('[Storage] Notice: Projects directory initialization bypassed:', e.message);
 }
 
 function slugify(text) {
