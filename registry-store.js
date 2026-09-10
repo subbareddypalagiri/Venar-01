@@ -1,5 +1,5 @@
 // ==============================================================================
-// VENAR REGISTRY STORE: 30 Skills, 30 MCP Servers, 30 Connectors
+// VENAR REGISTRY STORE: 40 Skills, 40 MCP Servers, 40 Connectors
 // Curated world-class tools for 3D, motion, concept sites, and autonomous dev.
 // Features 1-click install, 0ms local caching in ~/.venar/, and prompt injection.
 // ==============================================================================
@@ -292,6 +292,96 @@ const SKILLS_STORE = [
     "creator": "Apple Events / Vercel Ship",
     "desc": "Responsive CSS Grid bento boxes with live animated counters, code snippets, and mini-visualizers.",
     "prompt": "[SKILL ACTIVATED: BENTO GRID SHOWCASE]\nCreate high-density feature showcases:\n1. CSS Grid with span-1, span-2, and span-3 layouts collapsing gracefully on mobile.\n2. Each bento card hosts an interactive element: live canvas, simulated telemetry ticker, interactive switch, or syntax-highlighted code pill."
+  },
+  {
+    "id": "webgpu-wgsl-compute",
+    "name": "WebGPU WGSL Compute Pipeline",
+    "rank": 31,
+    "category": "GPU & WebGPU",
+    "creator": "W3C / Chrome GPU Team",
+    "desc": "WGSL compute shaders for 100k N-body gravity physics & matrix math; 10x faster than WebGL.",
+    "prompt": "[SKILL ACTIVATED: WEBGPU WGSL COMPUTE]\nYou are a WebGPU Graphics & Compute Systems Engineer. When writing WebGPU applications:\n1. Check navigator.gpu and requestAdapter() with requestDevice().\n2. Write raw WGSL compute shaders: @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id: vec3<u32>).\n3. Create GPUBuffer with GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST.\n4. Create GPUBindGroup and compute pipeline (device.createComputePipeline).\n5. Encode compute passes (passEncoder.dispatchWorkgroups(...)) and submit to device.queue.\n6. Always provide a fallback message if browser lacks WebGPU support."
+  },
+  {
+    "id": "gaussian-splatting-3d",
+    "name": "3D Gaussian Splatting Radiance",
+    "rank": 32,
+    "category": "3D & Photorealism",
+    "creator": "Inria / Mark Kellogg",
+    "desc": "Photorealistic neural radiance fields rendered in canvas at 60 FPS without 3D polygon meshes.",
+    "prompt": "[SKILL ACTIVATED: 3D GAUSSIAN SPLATTING]\nYou are a Neural Rendering & Radiance Field specialist:\n1. Use @mkkellogg/gaussian-splats-3d or WebGL/WebGPU rasterization of 3D ellipsoids with spherical harmonics.\n2. Optimize sort passes using 16-bit float half-precision buffers on the GPU.\n3. Bind camera view-projection matrices to depth-sort splat centers every frame.\n4. Implement progressive LOD streaming for massive radiance point clouds."
+  },
+  {
+    "id": "rive-interactive-motion",
+    "name": "Rive State-Machine Physics",
+    "rank": 33,
+    "category": "Motion & Animation",
+    "creator": "Rive.app",
+    "desc": "Bone rigging, procedural cursor tracking, and nested state machine animations with 0 frame drops.",
+    "prompt": "[SKILL ACTIVATED: RIVE INTERACTIVE MOTION]\nBuild interactive Rive vector animations:\n1. Embed @rive-app/canvas with stateMachines and autoplay.\n2. Retrieve state machine inputs via riveInstance.stateMachineInputs(machineName).\n3. Bind cursor position (xAxis, yAxis) or click triggers directly to state machine boolean/number inputs.\n4. Handle resize events to maintain crisp vector rendering on Retina/High-DPI screens."
+  },
+  {
+    "id": "ast-grep-codemod",
+    "name": "ast-grep Structural Rewrite",
+    "rank": 34,
+    "category": "Tooling & Refactoring",
+    "creator": "Herrington Darkholme",
+    "desc": "Tree-sitter based AST structural code search and multi-file semantic rewrites without regex errors.",
+    "prompt": "[SKILL ACTIVATED: AST-GREP CODEMOD]\nPerform structural AST code transformations:\n1. Use pattern syntax: $MATCH, $$$ARGS to match code structure irrespective of whitespace or linebreaks.\n2. Rewrite API calls, deprecated patterns, and import paths with semantic precision.\n3. Validate syntax tree integrity before committing changes."
+  },
+  {
+    "id": "matter-ragdoll-physics",
+    "name": "Matter.js Ragdoll & Verlet Cloth",
+    "rank": 35,
+    "category": "Motion & Physics",
+    "creator": "Codrops / Matter.js",
+    "desc": "Interactive 2D skeletal ragdoll physics and draggable verlet cloth simulations in browser.",
+    "prompt": "[SKILL ACTIVATED: MATTER.JS RAGDOLL & CLOTH]\nBuild physical ragdolls and verlet simulations:\n1. Construct composite ragdoll bodies using Matter.Bodies and Matter.Constraint for joints.\n2. Build cloth grids using interconnected distance constraints with stiffness and relaxation iterations.\n3. Add pointer tearing interactions: remove constraints when drag tension exceeds threshold."
+  },
+  {
+    "id": "chroma-vector-search",
+    "name": "In-Browser Chroma Vector Search",
+    "rank": 36,
+    "category": "AI & Memory",
+    "creator": "Chroma Core Team",
+    "desc": "In-browser quantized vector search with cosine similarity and sub-millisecond retrieval.",
+    "prompt": "[SKILL ACTIVATED: CHROMA VECTOR SEARCH]\nImplement client-side vector search:\n1. Generate or load quantized vector embeddings (e.g. 384-dimensional).\n2. Compute dot products and cosine similarity using typed Float32Array arrays.\n3. Store vectors in IndexedDB for instant cross-session persistence."
+  },
+  {
+    "id": "haptic-gamepad-api",
+    "name": "Gamepad Haptic Force Feedback",
+    "rank": 37,
+    "category": "Hardware & Immersion",
+    "creator": "W3C Gamepad Spec",
+    "desc": "Dual-rumble frequency vibration feedback and tactile controller input for interactive web experiences.",
+    "prompt": "[SKILL ACTIVATED: HAPTIC GAMEPAD API]\nImplement game controller immersion:\n1. Listen to window.addEventListener('gamepadconnected').\n2. Poll navigator.getGamepads() in requestAnimationFrame.\n3. Trigger dual-rumble vibration: gamepad.vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: 150, weakMagnitude: 0.5, strongMagnitude: 0.8 })."
+  },
+  {
+    "id": "web-midi-sequencer",
+    "name": "Web MIDI Hardware Sequencer",
+    "rank": 38,
+    "category": "Audio & Immersion",
+    "creator": "Web MIDI Spec",
+    "desc": "Real-time hardware synthesizer control and interactive multi-track canvas step sequencers.",
+    "prompt": "[SKILL ACTIVATED: WEB MIDI SEQUENCER]\nControl physical and software synthesizers:\n1. Request navigator.requestMIDIAccess({ sysex: false }).\n2. Send MIDI Note On [0x90, note, velocity] and Note Off [0x80, note, 0] messages via output.send().\n3. Render an interactive 16-step grid canvas with tempo BPM sync."
+  },
+  {
+    "id": "mediapipe-gesture-vision",
+    "name": "MediaPipe Zero-Server Hand Tracking",
+    "rank": 39,
+    "category": "Vision & AI",
+    "creator": "Google Research",
+    "desc": "Real-time webcam hand skeleton and facial gesture tracking running purely in client WebAssembly.",
+    "prompt": "[SKILL ACTIVATED: MEDIAPIPE GESTURE VISION]\nBuild touchless gesture-controlled interfaces:\n1. Load @mediapipe/tasks-vision HandLandmarker in WebAssembly.\n2. Process video stream frame-by-frame via requestVideoFrameCallback.\n3. Map index finger tip (landmark 8) and thumb tip (landmark 4) distance for pinch-to-click gestures in 3D canvas."
+  },
+  {
+    "id": "web-codecs-video-gl",
+    "name": "WebCodecs Hardware Video Shaders",
+    "rank": 40,
+    "category": "3D & Shaders",
+    "creator": "W3C Media Working Group",
+    "desc": "Hardware-accelerated low-latency video frame decoding with real-time WebGL post-processing shaders.",
+    "prompt": "[SKILL ACTIVATED: WEBCODECS VIDEO SHADERS]\nProcess video with GPU shaders:\n1. Setup VideoDecoder with output: (videoFrame) => { ... }.\n2. Upload VideoFrame directly to WebGL texture via gl.texImage2D(..., videoFrame) without CPU copy overhead.\n3. Apply chromatic aberration, CRT scanlines, or edge detection fragment shaders in real-time."
   }
 ];
 const MCP_STORE = [
@@ -594,6 +684,106 @@ const MCP_STORE = [
     "package": "@tinybirdco/mcp-server",
     "cmd": "npx -y @tinybirdco/mcp-server",
     "desc": "Real-time ClickHouse SQL pipes and event streaming analytics."
+  },
+  {
+    "id": "midscene",
+    "name": "Midscene AI Visual Grounding",
+    "rank": 31,
+    "category": "Browser & Testing",
+    "creator": "Tencent AI",
+    "package": "@midscene/web",
+    "cmd": "npx -y @midscene/web",
+    "desc": "Multimodal web automation controlling complex WebGL and canvas via visual coordinate grounding."
+  },
+  {
+    "id": "blender",
+    "name": "Headless Blender 3D MCP",
+    "rank": 32,
+    "category": "3D & Assets",
+    "creator": "Blender Foundation",
+    "package": "@modelcontextprotocol/server-blender",
+    "cmd": "npx -y @modelcontextprotocol/server-blender",
+    "desc": "Headless Blender 3D scene creation, procedural geometry node graphs, and automatic GLTF exports."
+  },
+  {
+    "id": "val-town",
+    "name": "Val Town Edge Function MCP",
+    "rank": 33,
+    "category": "Cloud & Edge",
+    "creator": "Val Town",
+    "package": "@val-town/mcp-server",
+    "cmd": "npx -y @val-town/mcp-server",
+    "desc": "Instant serverless TypeScript API deployment and cron triggers directly from chat."
+  },
+  {
+    "id": "chroma",
+    "name": "ChromaDB Vector Memory MCP",
+    "rank": 34,
+    "category": "Databases & Memory",
+    "creator": "ChromaDB",
+    "package": "@chromadb/mcp-server",
+    "cmd": "npx -y @chromadb/mcp-server",
+    "desc": "Vector collection management, semantic document embeddings, and hybrid search."
+  },
+  {
+    "id": "obsidian",
+    "name": "Obsidian Knowledge Vault MCP",
+    "rank": 35,
+    "category": "Documentation",
+    "creator": "Obsidian Community",
+    "package": "@modelcontextprotocol/server-obsidian",
+    "cmd": "npx -y @modelcontextprotocol/server-obsidian",
+    "desc": "Local Markdown vault search, bidirectional backlink graph navigation, and notes sync."
+  },
+  {
+    "id": "raygun",
+    "name": "Raygun Crash Diagnostic MCP",
+    "rank": 36,
+    "category": "Observability",
+    "creator": "Raygun",
+    "package": "@raygun/mcp-server",
+    "cmd": "npx -y @raygun/mcp-server",
+    "desc": "Real-time production crash stacktraces, user session replay correlation, and error alerts."
+  },
+  {
+    "id": "cloudflare-d1",
+    "name": "Cloudflare D1 SQL MCP",
+    "rank": 37,
+    "category": "Databases",
+    "creator": "Cloudflare",
+    "package": "@cloudflare/mcp-server-d1",
+    "cmd": "npx -y @cloudflare/mcp-server-d1",
+    "desc": "Direct edge SQLite querying, schema migrations, and instant database branching."
+  },
+  {
+    "id": "linear-cycles",
+    "name": "Linear Autonomous Cycles MCP",
+    "rank": 38,
+    "category": "Project Management",
+    "creator": "Linear Team",
+    "package": "@modelcontextprotocol/server-linear-cycles",
+    "cmd": "npx -y @modelcontextprotocol/server-linear-cycles",
+    "desc": "Automated sprint cycle planning, issue triage, and git commit linkage."
+  },
+  {
+    "id": "weaviate",
+    "name": "Weaviate Hybrid Search MCP",
+    "rank": 39,
+    "category": "Databases & Memory",
+    "creator": "Weaviate",
+    "package": "@weaviate/mcp-server",
+    "cmd": "npx -y @weaviate/mcp-server",
+    "desc": "Hybrid dense-sparse BM25 vector search and multi-tenant schema introspection."
+  },
+  {
+    "id": "postman",
+    "name": "Postman API Workspace MCP",
+    "rank": 40,
+    "category": "API & Testing",
+    "creator": "Postman",
+    "package": "@postman/mcp-server",
+    "cmd": "npx -y @postman/mcp-server",
+    "desc": "API collection mock testing, automated test suite runs, and live OpenAPI synchronization."
   }
 ];
 const CONNECTORS_STORE = [
@@ -896,6 +1086,106 @@ const CONNECTORS_STORE = [
     "sdk": "@daily-co/daily-js",
     "envKey": "DAILY_API_KEY",
     "desc": "Drop-in video call widgets and WebRTC rooms with recording capabilities."
+  },
+  {
+    "id": "sambanova",
+    "name": "SambaNova Ultra-Fast Inference",
+    "rank": 31,
+    "category": "AI Inference",
+    "creator": "SambaNova Systems",
+    "sdk": "@sambanova/ai",
+    "envKey": "SAMBANOVA_API_KEY",
+    "desc": "Sub-80ms TTFT on SN40L Reconfigurable Dataflow Units running Llama 3.3."
+  },
+  {
+    "id": "turso",
+    "name": "Turso Edge LibSQL",
+    "rank": 32,
+    "category": "Databases",
+    "creator": "ChiselStrike / Turso",
+    "sdk": "@libsql/client",
+    "envKey": "TURSO_DATABASE_URL",
+    "desc": "Sub-5ms SQLite queries with embedded replicas and vector extension support."
+  },
+  {
+    "id": "hyperbolic",
+    "name": "Hyperbolic Decentralized GPU",
+    "rank": 33,
+    "category": "AI Inference",
+    "creator": "Hyperbolic Labs",
+    "sdk": "openai",
+    "envKey": "HYPERBOLIC_API_KEY",
+    "desc": "High-throughput open GPU cluster serving DeepSeek R1 at lowest possible cost."
+  },
+  {
+    "id": "together-ai",
+    "name": "Together AI Inference Engine",
+    "rank": 34,
+    "category": "AI Inference",
+    "creator": "Together AI",
+    "sdk": "together-ai",
+    "envKey": "TOGETHER_API_KEY",
+    "desc": "Sub-100ms TTFT inference engine with on-demand custom LoRA adapter switching."
+  },
+  {
+    "id": "fireworks-ai",
+    "name": "Fireworks FireAttention Engine",
+    "rank": 35,
+    "category": "AI Inference",
+    "creator": "Fireworks AI",
+    "sdk": "openai",
+    "envKey": "FIREWORKS_API_KEY",
+    "desc": "Speculative decoding delivering 400+ tokens/sec on frontier coder models."
+  },
+  {
+    "id": "deepseek-official",
+    "name": "DeepSeek Official Reasoning API",
+    "rank": 36,
+    "category": "AI Inference",
+    "creator": "DeepSeek AI",
+    "sdk": "openai",
+    "envKey": "DEEPSEEK_API_KEY",
+    "desc": "Native DeepSeek-R1 reasoning engine with chain-of-thought token streams."
+  },
+  {
+    "id": "axiom",
+    "name": "Axiom Cloud Observability",
+    "rank": 37,
+    "category": "Observability",
+    "creator": "Axiom Inc.",
+    "sdk": "@axiomhq/js",
+    "envKey": "AXIOM_TOKEN",
+    "desc": "Serverless 100% event log retention with sub-second dataset queries."
+  },
+  {
+    "id": "inngest",
+    "name": "Inngest Durable Execution",
+    "rank": 38,
+    "category": "Workflows & Queues",
+    "creator": "Inngest",
+    "sdk": "inngest",
+    "envKey": "INNGEST_EVENT_KEY",
+    "desc": "Durable serverless step workflows, background jobs, and automatic failure retries."
+  },
+  {
+    "id": "knock",
+    "name": "Knock Multi-Channel Notifications",
+    "rank": 39,
+    "category": "Communications",
+    "creator": "Knock Labs",
+    "sdk": "@knocklabs/node",
+    "envKey": "KNOCK_API_KEY",
+    "desc": "In-app notification feeds, push, email, and SMS with smart batching."
+  },
+  {
+    "id": "fal-ai",
+    "name": "Fal.ai Fast Media Generation",
+    "rank": 40,
+    "category": "AI Models",
+    "creator": "Fal.ai",
+    "sdk": "@fal-ai/serverless-client",
+    "envKey": "FAL_KEY",
+    "desc": "Sub-second FLUX image and AI video generation API."
   }
 ];
 
@@ -1095,7 +1385,7 @@ function installConnector(idOrNum, keyVal) {
 
 function printSkillsCatalog() {
   const activeIds = getActiveSkills();
-  console.log('\n' + c.peachBold + '═══ VENAR WORLD-CLASS SKILLS REGISTRY (30 Curated Master Skills) ═══' + c.reset);
+  console.log('\n' + c.peachBold + '═══ VENAR WORLD-CLASS SKILLS REGISTRY (' + SKILLS_STORE.length + ' Curated Master Skills) ═══' + c.reset);
   console.log(c.dim + '1-Click Download: 1st time downloads to ~/.venar/skills/ • Next time: 0ms Instant Cache!' + c.reset + '\n');
 
   const categories = [...new Set(SKILLS_STORE.map(s => s.category))];
@@ -1109,14 +1399,14 @@ function printSkillsCatalog() {
         ? c.green + '● ACTIVE' + c.reset 
         : (isCached ? c.cyan + '✓ CACHED' + c.reset : c.dim + '○ AVAILABLE' + c.reset);
       const numStr = '[' + s.rank.toString().padStart(2, ' ') + ']';
-      console.log('  ' + c.yellow + numStr + c.reset + ' ' + c.bold + s.name.padEnd(32) + c.reset + ' ' + statusBadge + ' ' + c.dim + '(by ' + s.creator + ')' + c.reset);
+      console.log('  ' + c.yellow + numStr + c.reset + ' ' + c.bold + s.name.padEnd(36) + c.reset + ' ' + statusBadge + ' ' + c.dim + '(by ' + s.creator + ')' + c.reset);
       console.log('       ' + c.dim + s.desc + c.reset);
     });
     console.log();
   });
 
   console.log(c.peachBold + 'Usage:' + c.reset);
-  console.log('  ' + c.cyan + '/skill <number|id>' + c.reset + '            - 1-Click Install & Activate (e.g. /skill 2 or /skill glsl-raymarching)');
+  console.log('  ' + c.cyan + '/skill <number|id>' + c.reset + '            - 1-Click Install & Activate (e.g. /skill 31 or /skill webgpu-wgsl-compute)');
   console.log('  ' + c.cyan + '/skill deactivate <number|id>' + c.reset + ' - Deactivate a skill');
   console.log('  ' + c.cyan + '/skills' + c.reset + '                       - View this catalog anytime\n');
 }
@@ -1125,7 +1415,7 @@ function printMcpCatalog() {
   const config = getMcpConfig();
   const installedMap = config.mcpServers || {};
 
-  console.log('\n' + c.peachBold + '═══ VENAR WORLD-CLASS MCP REGISTRY (30 Model Context Protocol Servers) ═══' + c.reset);
+  console.log('\n' + c.peachBold + '═══ VENAR WORLD-CLASS MCP REGISTRY (' + MCP_STORE.length + ' Model Context Protocol Servers) ═══' + c.reset);
   console.log(c.dim + 'Saved to ~/.venar/mcp.json • Standard MCP Protocol Compatible' + c.reset + '\n');
 
   const categories = [...new Set(MCP_STORE.map(m => m.category))];
@@ -1136,7 +1426,7 @@ function printMcpCatalog() {
       const isInstalled = Boolean(installedMap[m.id]);
       const statusBadge = isInstalled ? c.green + '● INSTALLED' + c.reset : c.dim + '○ AVAILABLE' + c.reset;
       const numStr = '[' + m.rank.toString().padStart(2, ' ') + ']';
-      console.log('  ' + c.yellow + numStr + c.reset + ' ' + c.bold + m.name.padEnd(32) + c.reset + ' ' + statusBadge + ' ' + c.dim + '(by ' + m.creator + ')' + c.reset);
+      console.log('  ' + c.yellow + numStr + c.reset + ' ' + c.bold + m.name.padEnd(36) + c.reset + ' ' + statusBadge + ' ' + c.dim + '(by ' + m.creator + ')' + c.reset);
       console.log('       ' + c.dim + m.desc + c.reset);
       console.log('       ' + c.dim + 'Command: ' + c.white + m.cmd + c.reset);
     });
@@ -1144,7 +1434,7 @@ function printMcpCatalog() {
   });
 
   console.log(c.peachBold + 'Usage:' + c.reset);
-  console.log('  ' + c.cyan + '/mcp <number|id>' + c.reset + ' - 1-Click Auto-Configure MCP server into ~/.venar/mcp.json (e.g. /mcp 1)');
+  console.log('  ' + c.cyan + '/mcp <number|id>' + c.reset + ' - 1-Click Auto-Configure MCP server into ~/.venar/mcp.json (e.g. /mcp 31)');
   console.log('  ' + c.cyan + '/mcp' + c.reset + '            - View this catalog anytime\n');
 }
 
@@ -1152,7 +1442,7 @@ function printConnectorsCatalog() {
   const config = getConnectorsConfig();
   const configuredMap = config.connectors || {};
 
-  console.log('\n' + c.peachBold + '═══ VENAR CLOUD & ECOSYSTEM CONNECTORS (30 Verified Services) ═══' + c.reset);
+  console.log('\n' + c.peachBold + '═══ VENAR CLOUD & ECOSYSTEM CONNECTORS (' + CONNECTORS_STORE.length + ' Verified Services) ═══' + c.reset);
   console.log(c.dim + 'Saved to ~/.venar/connectors.json • Direct SDK Integration & Env Setup' + c.reset + '\n');
 
   const categories = [...new Set(CONNECTORS_STORE.map(conn => conn.category))];
@@ -1163,7 +1453,7 @@ function printConnectorsCatalog() {
       const isConf = Boolean(configuredMap[conn.id]);
       const statusBadge = isConf ? c.green + '● CONFIGURED' + c.reset : c.dim + '○ AVAILABLE' + c.reset;
       const numStr = '[' + conn.rank.toString().padStart(2, ' ') + ']';
-      console.log('  ' + c.yellow + numStr + c.reset + ' ' + c.bold + conn.name.padEnd(32) + c.reset + ' ' + statusBadge + ' ' + c.dim + '(by ' + conn.creator + ')' + c.reset);
+      console.log('  ' + c.yellow + numStr + c.reset + ' ' + c.bold + conn.name.padEnd(36) + c.reset + ' ' + statusBadge + ' ' + c.dim + '(by ' + conn.creator + ')' + c.reset);
       console.log('       ' + c.dim + conn.desc + c.reset);
       console.log('       ' + c.dim + 'SDK: ' + c.white + conn.sdk + c.reset + ' | Env: ' + c.yellow + conn.envKey + c.reset);
     });
