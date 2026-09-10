@@ -13,6 +13,7 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const { execSync } = require('child_process');
+const registryStore = require('./registry-store');
 
 const CWD = process.cwd();
 const GATEWAY_URL = process.env.VENAR_GATEWAY_URL || 'http://localhost:8080/v1/chat/completions';
@@ -931,6 +932,81 @@ ${c.reset}`);
     return;
   }
 
+  // --- VENAR 3-TIER REGISTRY SYSTEM (/skills, /mcp, /connectors) ---
+  if (query === '/skills') {
+    if (registryStore) registryStore.printSkillsCatalog();
+    return;
+  }
+
+  if (query.startsWith('/skill ')) {
+    if (!registryStore) return;
+    const arg = query.slice(7).trim();
+    if (arg.startsWith('deactivate ')) {
+      const target = arg.slice(11).trim();
+      const res = registryStore.deactivateSkill(target);
+      if (res.error) console.log('\n' + c.red + '❌ ' + res.error + c.reset + '\n');
+      else console.log('\n' + c.green + '✓ Deactivated skill: ' + c.bold + res.skill.name + c.reset + '\n');
+      return;
+    }
+    const res = registryStore.installAndActivateSkill(arg);
+    if (res.error) {
+      console.log('\n' + c.red + '❌ ' + res.error + c.reset + '\n');
+    } else {
+      const statusText = res.newlyDownloaded 
+        ? c.green + '✓ Downloaded and cached to ~/.venar/skills/' + res.skill.id + '.md' + c.reset 
+        : c.cyan + '✓ Instant 0ms load from local cache (~/.venar/skills/' + res.skill.id + '.md)' + c.reset;
+      console.log('\n' + c.peachBold + '★ SKILL ACTIVATED: ' + res.skill.name + ' (#' + res.skill.rank + ')' + c.reset);
+      console.log('  ' + statusText);
+      console.log('  ' + c.dim + 'Category: ' + res.skill.category + ' • Creator: ' + res.skill.creator + c.reset);
+      console.log('  ' + c.green + 'Directive active in all subsequent coding prompts.' + c.reset + '\n');
+    }
+    return;
+  }
+
+  if (query === '/mcp' || query === '/mcps') {
+    if (registryStore) registryStore.printMcpCatalog();
+    return;
+  }
+
+  if (query.startsWith('/mcp ')) {
+    if (!registryStore) return;
+    const target = query.slice(5).trim();
+    const res = registryStore.installMcpServer(target);
+    if (res.error) {
+      console.log('\n' + c.red + '❌ ' + res.error + c.reset + '\n');
+    } else {
+      console.log('\n' + c.peachBold + '★ MCP SERVER CONFIGURED: ' + res.mcp.name + ' (#' + res.mcp.rank + ')' + c.reset);
+      console.log('  ' + c.green + '✓ Written to ~/.venar/mcp.json' + c.reset);
+      console.log('  ' + c.dim + 'Command: ' + res.mcp.cmd + c.reset);
+      console.log('  ' + c.dim + 'Category: ' + res.mcp.category + ' • Creator: ' + res.mcp.creator + c.reset + '\n');
+    }
+    return;
+  }
+
+  if (query === '/connectors' || query === '/connector') {
+    if (registryStore) registryStore.printConnectorsCatalog();
+    return;
+  }
+
+  if (query.startsWith('/connector ')) {
+    if (!registryStore) return;
+    const parts = query.slice(11).trim().split(/\s+/);
+    const target = parts[0];
+    const key = parts[1] || null;
+    const res = registryStore.installConnector(target, key);
+    if (res.error) {
+      console.log('\n' + c.red + '❌ ' + res.error + c.reset + '\n');
+    } else {
+      console.log('\n' + c.peachBold + '★ CONNECTOR CONFIGURED: ' + res.conn.name + ' (#' + res.conn.rank + ')' + c.reset);
+      console.log('  ' + c.green + '✓ Written to ~/.venar/connectors.json' + c.reset);
+      console.log('  ' + c.dim + 'SDK: ' + res.conn.sdk + ' • Env: ' + res.conn.envKey + c.reset);
+      if (key) console.log('  ' + c.green + '✓ API Key / Credential securely saved.' + c.reset);
+      console.log();
+    }
+    return;
+  }
+
+
   if (query === '/outline') {
     const outline = getSymbolOutline(CWD);
     console.log(`\n${c.peachBold}═══ PROJECT SYMBOL OUTLINE (${CWD}) ═══${c.reset}\n`);
@@ -1218,6 +1294,14 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
   } else {
     promptWithContext += '\n\nCurrent Directory Tree:\n' + tree.slice(0, 30).join('\n');
   }
+
+  if (registryStore) {
+    const activeSkillsDirective = registryStore.getActiveSkillsPrompt();
+    if (activeSkillsDirective) {
+      promptWithContext += '\n' + activeSkillsDirective;
+    }
+  }
+
 
   conversationHistory.push({ role: 'user', content: promptWithContext });
   process.stdout.write(`\n${c.peach}⏳ Venar is thinking...${c.reset} `);
