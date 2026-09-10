@@ -18,6 +18,9 @@ const swarmEngine = require('./swarm-engine');
 const forgeTemplates = require('./forge-templates');
 const timeMachine = require('./time-machine');
 const visionQa = require('./vision-qa');
+const sidecarServer = require('./sidecar-server');
+const astSandbox = require('./ast-sandbox');
+const meshRouter = require('./mesh-router');
 
 const CWD = process.cwd();
 const GATEWAY_URL = process.env.VENAR_GATEWAY_URL || 'http://localhost:8080/v1/chat/completions';
@@ -914,7 +917,7 @@ ${c.peachBold}VENAR God-Tier AI Studio Commands:${c.reset}
   ${c.yellow}/swarm <task>${c.reset}    - 🚀 5-Agent Autonomous Swarm with User Decision Gate
   ${c.yellow}/swarm config${c.reset}    - ⚙️ Configure & toggle specialized Swarm agents
   ${c.yellow}/forge [1-4]${c.reset}     - ⚡ 1-Command Creative Archetypes (Awwwards 3D, Bento SaaS, Audio)
-  ${c.yellow}/inspect${c.reset}         - 👁️ Visual QA Eye & structural health audit
+  ${c.yellow}/sidecar${c.reset}         - 🌌 Spatial 3D Sidecar Dashboard (http://localhost:3333)\n  ${c.yellow}/mesh${c.reset}            - 🪜 Sovereign Multi-Provider Mesh & 12ms failover\n  ${c.yellow}/inspect${c.reset}         - 👁️ Visual QA Eye & structural health audit
   ${c.yellow}/checkpoint${c.reset}      - ⏱️ Create a time-machine snapshot
   ${c.yellow}/rewind${c.reset}          - ⏪ 1-Click rollback to previous snapshot
   ${c.yellow}/history${c.reset}         - 📜 View time-machine checkpoint timeline
@@ -973,7 +976,14 @@ ${c.reset}`);
       const fileBlocks = parseFileBlocks(result.code);
       if (fileBlocks.length > 0) {
         for (const block of fileBlocks) {
-          saveUndoSnapshot(block.file);
+          const astCheck = astSandbox.validateCodeBlock(block.file, block.content);
+        if (!astCheck.valid) {
+          console.log(`\n${c.red}❌ AST Sandbox Intercepted Corrupted File '${block.file}': ${astCheck.error}${c.reset}`);
+          console.log(`${c.yellow}⚠️ Prevented corrupted file from touching physical disk.\n${c.reset}`);
+          continue;
+        }
+        sidecarServer.broadcastSidecarEvent('file_written', { file: block.file });
+        saveUndoSnapshot(block.file);
           writeProjectFile(block.file, block.content);
           console.log(c.green + '✓ Saved ' + block.file + ' to disk!' + c.reset);
         }
@@ -1029,6 +1039,29 @@ ${c.reset}`);
 
   if (query === '/history') {
     timeMachine.printHistory(CWD);
+    return;
+  }
+
+  
+  // --- UNFAIR ADVANTAGES: SPATIAL SIDECAR & SOVEREIGN MESH ROUTER ---
+  if (query === '/sidecar' || query === '/spatial') {
+    sidecarServer.startSidecar(3333, CWD, true);
+    return;
+  }
+
+  if (query === '/sidecar stop') {
+    sidecarServer.stopSidecar();
+    return;
+  }
+
+  if (query.startsWith('/sidecar ')) {
+    const port = parseInt(query.slice(9).trim(), 10) || 3333;
+    sidecarServer.startSidecar(port, CWD, true);
+    return;
+  }
+
+  if (query === '/mesh' || query === '/mesh status') {
+    meshRouter.printMeshStatus();
     return;
   }
 
@@ -1421,6 +1454,7 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
         process.stdout.write(`\r${c.green}✓ Responded via ${p}/${m}:${c.reset}\n\n`);
       }
       process.stdout.write(token);
+      sidecarServer.broadcastSidecarEvent('token', token);
     });
 
     if (isFirstToken) {

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VENAR Spatial Sidecar Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg: #07070b;
+      --surface: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.08);
+      --peach: #e06c55;
+      --cyan: #38bdf8;
+      --green: #4ade80;
+      --purple: #c084fc;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      height: 54px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1.5rem;
+      background: rgba(7, 7, 11, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .logo {
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .logo-badge {
+      background: var(--peach);
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--green);
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr 440px;
+      overflow: hidden;
+    }
+    .panel {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      position: relative;
+    }
+    .panel:last-child { border-right: none; }
+    .panel-header {
+      padding: 0.8rem 1.2rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    #terminal-stream {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    #galaxy-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #galaxy-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .galaxy-overlay {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .galaxy-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .galaxy-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .viewport-switch {
+      display: flex;
+      gap: 0.4rem;
+    }
+    .vp-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .vp-btn.active {
+      background: var(--peach);
+      border-color: var(--peach);
+    }
+    #preview-frame-wrap {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #020204;
+      padding: 0.5rem;
+      overflow: hidden;
+    }
+    #preview-frame {
+      width: 100%;
+      height: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>VENAR</span>
+      <span class="logo-badge">SPATIAL SIDECAR</span>
+    </div>
+    <div class="status-pill">
+      <div class="pulse-dot"></div>
+      <span id="conn-status">LIVE SYNC (PORT 3333)</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="panel-header">
+        <span>LIVE TERMINAL & SWARM STREAM</span>
+        <span style="color: var(--peach);">● STREAMING</span>
+      </div>
+      <div class="panel-content" id="terminal-stream">
+[VENAR Spatial Sidecar initialized]
+Listening for live agent events from terminal...
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>3D CODEBASE GALAXY</span>
+        <span style="color: var(--cyan);">INTERACTIVE WEBGL</span>
+      </div>
+      <div id="galaxy-container">
+        <div class="galaxy-overlay">
+          <div class="galaxy-title">Project AST Universe</div>
+          <div class="galaxy-sub">Drag to rotate • Real-time file nodes</div>
+        </div>
+        <canvas id="galaxy-canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>LIVE PREVIEW & DIFF</span>
+        <div class="viewport-switch">
+          <button class="vp-btn active" onclick="setViewport('100%')">Desktop</button>
+          <button class="vp-btn" onclick="setViewport('768px')">Tablet</button>
+          <button class="vp-btn" onclick="setViewport('375px')">Mobile</button>
+        </div>
+      </div>
+      <div id="preview-frame-wrap">
+        <iframe id="preview-frame" src="/preview-content"></iframe>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function setViewport(w) {
+      document.querySelectorAll('.vp-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('preview-frame').style.width = w;
+    }
+
+    const term = document.getElementById('terminal-stream');
+    const evtSource = new EventSource('/events');
+
+    evtSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'token') {
+          term.textContent += data.payload;
+          term.scrollTop = term.scrollHeight;
+        } else if (data.type === 'file_written') {
+          term.textContent += '\n\n[FILE SAVED] ' + data.payload.file + '\n';
+          term.scrollTop = term.scrollHeight;
+          document.getElementById('preview-frame').src = '/preview-content?t=' + Date.now();
+        } else if (data.type === 'swarm') {
+          term.textContent += '\n\n[SWARM] ' + data.payload + '\n';
+          term.scrollTop = term.scrollHeight;
+        }
+      } catch (err) {}
+    };
+
+    const container = document.getElementById('galaxy-container');
+    const canvas = document.getElementById('galaxy-canvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.z = 40;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+
+    const coreGeo = new THREE.SphereGeometry(2, 32, 32);
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xe06c55, wireframe: true });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    scene.add(coreMesh);
+
+    const nodes = [];
+    const colors = [0x38bdf8, 0x4ade80, 0xc084fc, 0xfbbf24, 0xf43f5e];
+    for (let i = 0; i < 18; i++) {
+      const geo = new THREE.SphereGeometry(0.8, 16, 16);
+      const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length] });
+      const mesh = new THREE.Mesh(geo, mat);
+      const angle = (i / 18) * Math.PI * 2;
+      const radius = 12 + (i % 3) * 6;
+      mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, (Math.random() - 0.5) * 8);
+      scene.add(mesh);
+      nodes.push(mesh);
+
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        mesh.position
+      ]);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.4 });
+      scene.add(new THREE.Line(lineGeo, lineMat));
+    }
+
+    let isDragging = false;
+    let prevMouse = { x: 0, y: 0 };
+    container.addEventListener('mousedown', (e) => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    container.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - prevMouse.x;
+      const dy = e.clientY - prevMouse.y;
+      scene.rotation.y += dx * 0.01;
+      scene.rotation.x += dy * 0.01;
+      prevMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      scene.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+  </script>
+</body>
+</html>
