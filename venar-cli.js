@@ -14,6 +14,10 @@ const os = require('os');
 const http = require('http');
 const { execSync } = require('child_process');
 const registryStore = require('./registry-store');
+const swarmEngine = require('./swarm-engine');
+const forgeTemplates = require('./forge-templates');
+const timeMachine = require('./time-machine');
+const visionQa = require('./vision-qa');
 
 const CWD = process.cwd();
 const GATEWAY_URL = process.env.VENAR_GATEWAY_URL || 'http://localhost:8080/v1/chat/completions';
@@ -906,23 +910,29 @@ async function handleUserQuery(input, rl, autoApply = false) {
 
   if (query === '?' || query === '/help') {
     console.log(`
-${c.peachBold}VENAR Code Shortcuts & Commands:${c.reset}
-  ${c.yellow}/agent <task>${c.reset}    - Autonomous multi-turn ReAct agent loop\n  ${c.yellow}/outline${c.reset}         - View full project symbol outline & skeleton\n  ${c.yellow}/model [1-6]${c.reset}     - Interactive model switcher (e.g. /model 2 for DeepSeek R1)
-  ${c.yellow}/serve [stop]${c.reset}    - Launch instant live browser preview of current project
-  ${c.yellow}/undo${c.reset}            - 1-Click safe rollback to revert the last code change
-  ${c.yellow}/debug <cmd>${c.reset}     - Auto-execute command & autonomously self-heal errors
-  ${c.yellow}/grep <query>${c.reset}    - Search codebase text across all files
-  ${c.yellow}/find <pattern>${c.reset}  - Search files by name pattern
-  ${c.yellow}/init${c.reset}            - Create VENAR.md file with codebase instructions
-  ${c.yellow}/files${c.reset}           - Scan and list all files in this project
-  ${c.yellow}/key${c.reset}             - View or configure API keys (~/.venar/keys.json)
-  ${c.yellow}/key <p> <k>${c.reset}     - Add provider key (e.g. /key groq gsk_...)
-  ${c.yellow}/models${c.reset}          - Browse all 87+ free models in the fallback catalog
-  ${c.yellow}/fallback${c.reset}        - View live multi-model cascade ladder
-  ${c.yellow}/cost${c.reset}            - View token usage telemetry & cost ($0.00 zero-bill)
-  ${c.yellow}/status${c.reset}          - Check VENAR Gateway connection
-  ${c.yellow}/clear${c.reset}           - Clear terminal screen
-  ${c.yellow}/exit${c.reset}            - Exit VENAR Code
+${c.peachBold}VENAR God-Tier AI Studio Commands:${c.reset}
+  ${c.yellow}/swarm <task>${c.reset}    - 🚀 5-Agent Autonomous Swarm with User Decision Gate
+  ${c.yellow}/swarm config${c.reset}    - ⚙️ Configure & toggle specialized Swarm agents
+  ${c.yellow}/forge [1-4]${c.reset}     - ⚡ 1-Command Creative Archetypes (Awwwards 3D, Bento SaaS, Audio)
+  ${c.yellow}/inspect${c.reset}         - 👁️ Visual QA Eye & structural health audit
+  ${c.yellow}/checkpoint${c.reset}      - ⏱️ Create a time-machine snapshot
+  ${c.yellow}/rewind${c.reset}          - ⏪ 1-Click rollback to previous snapshot
+  ${c.yellow}/history${c.reset}         - 📜 View time-machine checkpoint timeline
+  ${c.yellow}/skills${c.reset}          - 🎨 30 World-Class Curated Skills (1-click download/cache)
+  ${c.yellow}/mcp${c.reset}             - 🔌 30 World-Class MCP Servers (~/.venar/mcp.json)
+  ${c.yellow}/connectors${c.reset}      - 🌐 30 Cloud Ecosystem Connectors (Supabase, Cloudflare, etc.)
+  ${c.yellow}/agent <task>${c.reset}    - 🤖 Autonomous multi-turn ReAct agent loop
+  ${c.yellow}/outline${c.reset}         - 🗺️ View full project symbol outline & skeleton
+  ${c.yellow}/model [1-6]${c.reset}     - 🔄 Interactive model switcher (DeepSeek, Claude, Qwen)
+  ${c.yellow}/serve [stop]${c.reset}    - 🌐 Launch instant live browser preview of project
+  ${c.yellow}/debug <cmd>${c.reset}     - 🩹 Auto-execute command & autonomously self-heal errors
+  ${c.yellow}/grep <query>${c.reset}    - 🔍 Search codebase text across all files
+  ${c.yellow}/find <pattern>${c.reset}  - 📁 Search files by name pattern
+  ${c.yellow}/models${c.reset}          - 📚 Browse all 87+ free models in fallback catalog
+  ${c.yellow}/fallback${c.reset}        - 🪜 View live multi-model cascade ladder
+  ${c.yellow}/cost${c.reset}            - ⚡ View token usage telemetry & cost ($0.00 zero-bill)
+  ${c.yellow}/clear${c.reset}           - 🧹 Clear terminal screen
+  ${c.yellow}/exit${c.reset}            - 👋 Exit VENAR Code
 
 ${c.dim}Tips:
   • Build: "Build a music player with audio visualizer and modern glassmorphism"
@@ -933,6 +943,100 @@ ${c.reset}`);
   }
 
   // --- VENAR 3-TIER REGISTRY SYSTEM (/skills, /mcp, /connectors) ---
+  
+  // --- FAANG-TIER EVOLUTION: SWARM, FORGE, TIME-MACHINE, VISION QA ---
+  if (query === '/swarm config' || query === '/swarm-config') {
+    swarmEngine.printSwarmConfig();
+    return;
+  }
+
+  if (query.startsWith('/swarm toggle ')) {
+    const target = query.slice(14).trim();
+    const res = swarmEngine.toggleSwarmAgent(target);
+    if (res.error) console.log('\n' + c.red + '❌ ' + res.error + c.reset + '\n');
+    else {
+      const st = res.agent.active ? c.green + 'ENABLED' + c.reset : c.yellow + 'DISABLED' + c.reset;
+      console.log('\n' + c.green + '✓ ' + res.agent.name + ' is now ' + st + '.' + c.reset + '\n');
+    }
+    return;
+  }
+
+  if (query.startsWith('/swarm ') || query === '/swarm') {
+    const task = query.replace(/^\/swarm\s*/, '').trim();
+    if (!task) {
+      swarmEngine.printSwarmConfig();
+      return;
+    }
+    timeMachine.createCheckpoint('Pre-Swarm Snapshot: ' + task.slice(0, 30));
+    const result = await swarmEngine.runSwarmSession(task, (messages, onChunk) => callGateway(messages, onChunk), rl);
+    if (result && result.code) {
+      const fileBlocks = parseFileBlocks(result.code);
+      if (fileBlocks.length > 0) {
+        for (const block of fileBlocks) {
+          saveUndoSnapshot(block.file);
+          writeProjectFile(block.file, block.content);
+          console.log(c.green + '✓ Saved ' + block.file + ' to disk!' + c.reset);
+        }
+        console.log('\n' + c.cyan + '💡 Project assembled by Swarm! Run ' + c.bold + '/serve' + c.reset + c.cyan + ' for instant browser preview.' + c.reset + '\n');
+      }
+    }
+    return;
+  }
+
+  if (query === '/forge') {
+    forgeTemplates.printForgeCatalog();
+    return;
+  }
+
+  if (query.startsWith('/forge ')) {
+    const target = query.slice(7).trim();
+    timeMachine.createCheckpoint('Pre-Forge Scaffold: ' + target);
+    const res = forgeTemplates.scaffoldArchetype(target, CWD);
+    if (res.error) {
+      console.log('\n' + c.red + '❌ ' + res.error + c.reset + '\n');
+    } else {
+      console.log('\n' + c.peachBold + '★ FORGE COMPLETE: ' + res.archetype.name + c.reset);
+      console.log('  ' + c.green + '✓ Generated ' + res.files.length + ' production files in ' + CWD + c.reset);
+      res.files.forEach(f => console.log('    • ' + c.cyan + f + c.reset));
+      console.log('\n' + c.cyan + 'Run ' + c.bold + '/serve' + c.reset + c.cyan + ' to launch live preview right now!' + c.reset + '\n');
+    }
+    return;
+  }
+
+  if (query === '/checkpoint') {
+    const cp = timeMachine.createCheckpoint('Manual User Checkpoint', CWD);
+    console.log('\n' + c.green + '✓ Time-machine checkpoint created! (Captured ' + cp.filesCount + ' files)' + c.reset + '\n');
+    return;
+  }
+
+  if (query.startsWith('/checkpoint ')) {
+    const name = query.slice(12).trim();
+    const cp = timeMachine.createCheckpoint(name, CWD);
+    console.log('\n' + c.green + '✓ Time-machine checkpoint "' + name + '" created!' + c.reset + '\n');
+    return;
+  }
+
+  if (query === '/rewind') {
+    const res = timeMachine.rewindLastCheckpoint(CWD);
+    if (res.error) {
+      console.log('\n' + c.yellow + '⚠️ ' + res.error + c.reset + '\n');
+    } else {
+      console.log('\n' + c.green + '✓ Time-Machine Rewind Complete! Restored to: ' + c.bold + res.restored.name + c.reset);
+      console.log('  ' + c.dim + 'Restored ' + res.restored.filesCount + ' files cleanly.' + c.reset + '\n');
+    }
+    return;
+  }
+
+  if (query === '/history') {
+    timeMachine.printHistory(CWD);
+    return;
+  }
+
+  if (query === '/inspect' || query === '/vision') {
+    visionQa.inspectLocalProject(CWD);
+    return;
+  }
+
   if (query === '/skills') {
     if (registryStore) registryStore.printSkillsCatalog();
     return;
