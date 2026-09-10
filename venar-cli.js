@@ -493,6 +493,9 @@ Please analyze the error and the project files, and output the exact fixed code 
   await handleUserQuery(debugPrompt, rl);
 }
 
+const LOCAL_GATEWAY_URL = 'http://localhost:8080/v1/chat/completions';
+const CLOUD_GATEWAY_URL = 'https://venar-01.vercel.app/v1/chat/completions';
+
 async function callGateway(messages) {
   const userKeys = loadUserKeys();
   const headers = { 'Content-Type': 'application/json' };
@@ -500,17 +503,50 @@ async function callGateway(messages) {
     headers['x-venar-client-keys'] = encodeURIComponent(JSON.stringify(userKeys));
   }
 
-  const res = await fetch(GATEWAY_URL, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      messages,
-      model: activeModel,
-      mode: 'auto',
-      max_tokens: 4096,
-      temperature: 0.2
-    })
-  });
+  const payload = {
+    messages,
+    model: activeModel,
+    mode: 'auto',
+    max_tokens: 4096,
+    temperature: 0.2
+  };
+
+  let res = null;
+
+  // 1. If user set explicit custom gateway URL via env, use it
+  if (process.env.VENAR_GATEWAY_URL) {
+    res = await fetch(process.env.VENAR_GATEWAY_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+  } else {
+    // 2. Standalone Claude Code Experience:
+    // First try local gateway on 8080. If local server is not running,
+    // seamlessly auto-fallback to the high-speed VENAR Cloud Gateway!
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 1500);
+      res = await fetch(LOCAL_GATEWAY_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(t);
+    } catch (localErr) {
+      // Local server offline -> Seamless Cloud Route (Zero user friction!)
+      try {
+        res = await fetch(CLOUD_GATEWAY_URL, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+      } catch (cloudErr) {
+        throw new Error(`Could not connect to local or cloud gateway: ${cloudErr.message}`);
+      }
+    }
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -886,7 +922,6 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
 
   } catch (err) {
     console.log(`\r${c.red}❌ Error:${c.reset} ${err.message}\n`);
-    console.log(`${c.dim}Make sure 'npm start' is running in the venar folder.${c.reset}\n`);
   }
 }
 
@@ -915,7 +950,9 @@ function startREPL() {
 if (process.argv.length > 2) {
   const inlineQuery = process.argv.slice(2).join(' ');
   const dummyRl = { question: (q, cb) => cb('y'), prompt: () => {} };
-  handleUserQuery(inlineQuery, dummyRl).then(() => process.exit(0));
+  handleUserQuery(inlineQuery, dummyRl).then(() => {
+    setTimeout(() => process.exit(0), 100);
+  });
 } else {
   startREPL();
 }
