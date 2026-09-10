@@ -434,6 +434,115 @@ function handleFind(pattern) {
 }
 
 // -----------------------------------------------------------------------------
+// 4.5. SMART CODEBASE SYMBOL OUTLINE & RELEVANCE SEARCH (Pillar 4)
+// -----------------------------------------------------------------------------
+function getSymbolOutline(dir = CWD, maxFiles = 40) {
+  const tree = getDirectoryTree(dir, 3);
+  const outlines = [];
+  let fileCount = 0;
+
+  for (const item of tree) {
+    if (fileCount >= maxFiles) break;
+    const cleanPath = item.replace(/^[📄📁]\s*/u, '').trim();
+    if (item.startsWith('📁')) continue;
+
+    const ext = path.extname(cleanPath).toLowerCase();
+    if (!['.js', '.mjs', '.cjs', '.ts', '.jsx', '.tsx', '.py', '.html', '.json'].includes(ext)) continue;
+
+    const content = readFileContent(cleanPath);
+    if (!content || content.length > 80000) continue;
+
+    const symbols = [];
+    const lines = content.split('\n');
+
+    if (ext === '.json') {
+      if (cleanPath.endsWith('package.json')) {
+        try {
+          const pkg = JSON.parse(content);
+          symbols.push(`pkg: ${pkg.name || 'app'} v${pkg.version || '1.0'} | scripts: ${Object.keys(pkg.scripts || {}).join(', ')}`);
+        } catch(e) {}
+      }
+    } else if (ext === '.py') {
+      for (const line of lines) {
+        const m = line.match(/^\s*(def|class)\s+([a-zA-Z0-9_]+)/);
+        if (m) symbols.push(`${m[1]} ${m[2]}`);
+      }
+    } else if (ext === '.html') {
+      const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
+      if (titleMatch) symbols.push(`title: "${titleMatch[1].trim()}"`);
+      for (const line of lines) {
+        const idMatch = line.match(/id=["']([a-zA-Z0-9_-]+)["']/);
+        if (idMatch && symbols.length < 8) symbols.push(`#${idMatch[1]}`);
+      }
+    } else {
+      // JS / TS
+      for (const line of lines) {
+        const fnMatch = line.match(/(?:function\s+([a-zA-Z0-9_]+)|const\s+([a-zA-Z0-9_]+)\s*=\s*(?:async\s*)?\()/);
+        if (fnMatch) {
+          symbols.push(`fn ${fnMatch[1] || fnMatch[2]}`);
+        } else {
+          const classMatch = line.match(/class\s+([a-zA-Z0-9_]+)/);
+          if (classMatch) {
+            symbols.push(`class ${classMatch[1]}`);
+          } else {
+            const routeMatch = line.match(/(?:app|router)\.(get|post|put|delete|use)\s*\(\s*['"]([^'"]+)['"]/);
+            if (routeMatch) symbols.push(`${routeMatch[1].toUpperCase()} ${routeMatch[2]}`);
+          }
+        }
+        if (symbols.length >= 10) break;
+      }
+    }
+
+    if (symbols.length > 0) {
+      outlines.push(`📄 ${cleanPath}:\n   • ${symbols.slice(0, 8).join('\n   • ')}`);
+      fileCount++;
+    }
+  }
+
+  return outlines.join('\n\n');
+}
+
+function smartKeywordSearch(query, maxFiles = 2) {
+  const stopWords = new Set([
+    'the', 'and', 'for', 'with', 'this', 'that', 'from', 'what', 'how', 'when',
+    'code', 'file', 'files', 'create', 'make', 'update', 'edit', 'please', 'help',
+    'can', 'you', 'build', 'write', 'tell', 'about', 'clean', 'simple', 'give',
+    'show', 'haiku', 'poem', 'joke', 'explain', 'who', 'why', 'where'
+  ]);
+  const words = query.toLowerCase()
+    .replace(/[^a-z0-9_\-\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !stopWords.has(w));
+
+  if (words.length === 0) return [];
+
+  const tree = getDirectoryTree(CWD, 3);
+  const scores = [];
+
+  for (const item of tree) {
+    if (item.startsWith('📁')) continue;
+    const cleanPath = item.replace(/^[📄📁]\s*/u, '').trim();
+    const content = readFileContent(cleanPath);
+    if (!content) continue;
+
+    const lower = content.toLowerCase();
+    let score = 0;
+    for (const w of words) {
+      if (cleanPath.toLowerCase().includes(w)) score += 8;
+      const matches = lower.split(w).length - 1;
+      score += Math.min(matches, 6);
+    }
+
+    if (score >= 6) {
+      scores.push({ path: cleanPath, content: content.slice(0, 12000), score });
+    }
+  }
+
+  scores.sort((a, b) => b.score - a.score);
+  return scores.slice(0, maxFiles);
+}
+
+// -----------------------------------------------------------------------------
 // 5. INTERACTIVE MODEL SWITCHER CATALOG
 // -----------------------------------------------------------------------------
 const QUICK_MODELS = [
@@ -466,37 +575,59 @@ async function handleAutoDebug(cmd, rl) {
     console.log(`\n${c.yellow}Usage: /debug <command>${c.reset} (e.g. /debug node app.js or /debug npm test)\n`);
     return;
   }
-  console.log(`\n${c.peachBold}⚡ [AUTO-DEBUGGER] Executing: ${c.white}${cmd}${c.reset} ...\n`);
 
-  let stdout = '';
-  let stderr = '';
-  try {
-    stdout = execSync(cmd, { cwd: CWD, encoding: 'utf8', stdio: 'pipe' });
-    console.log(stdout);
-    console.log(`${c.green}✓ Command executed cleanly with 0 errors!${c.reset}\n`);
-    return;
-  } catch (err) {
-    stdout = err.stdout ? err.stdout.toString() : '';
-    stderr = err.stderr ? err.stderr.toString() : err.message;
-    if (stdout) console.log(stdout);
-    console.log(`${c.red}❌ Command failed with error:${c.reset}`);
-    console.log(`${c.red}${stderr}${c.reset}\n`);
-  }
+  const maxAttempts = 5;
+  console.log(`\n${c.peachBold}⚡ [AUTONOMOUS SELF-HEALER] Starting closed-loop verification for:${c.reset} ${c.white}${cmd}${c.reset}`);
+  console.log(`${c.dim}Max self-healing iterations: ${maxAttempts}${c.reset}\n`);
 
-  console.log(`${c.peachBold}🤖 Autonomous Self-Healing Agent activated... Analyzing error & generating patch...${c.reset}\n`);
-  const debugPrompt = `The command "${cmd}" failed with error:
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`${c.cyan}─── Iteration ${attempt}/${maxAttempts} ──────────────────────────────────────────${c.reset}`);
+    let stdout = '';
+    let stderr = '';
+    let failed = false;
+
+    try {
+      stdout = execSync(cmd, { cwd: CWD, encoding: 'utf8', stdio: 'pipe' });
+      if (stdout) console.log(stdout);
+    } catch (err) {
+      failed = true;
+      stdout = err.stdout ? err.stdout.toString() : '';
+      stderr = err.stderr ? err.stderr.toString() : err.message;
+      if (stdout) console.log(stdout);
+      console.log(`${c.red}❌ Run failed (exit status):${c.reset}`);
+      console.log(`${c.red}${stderr.trim()}${c.reset}\n`);
+    }
+
+    if (!failed) {
+      if (attempt === 1) {
+        console.log(`${c.green}✓ Command executed cleanly with 0 errors! No fixes needed.${c.reset}\n`);
+      } else {
+        console.log(`\n${c.green}${c.bold}🎉 [SELF-HEALING COMPLETE] Fixed in iteration ${attempt}! Command '${cmd}' now passes with 0 errors.${c.reset}\n`);
+      }
+      return;
+    }
+
+    if (attempt === maxAttempts) {
+      console.log(`${c.yellow}⚠️ Reached maximum self-healing limit (${maxAttempts} attempts). Please review remaining errors manually.${c.reset}\n`);
+      return;
+    }
+
+    console.log(`${c.peachBold}🤖 Autonomous Self-Healing Agent diagnosing error & generating fix (Attempt ${attempt})...${c.reset}\n`);
+    const debugPrompt = `The command "${cmd}" failed with error in iteration ${attempt}:
 \`\`\`
 ${stderr || stdout}
 \`\`\`
 Please analyze the error and the project files, and output the exact fixed code using the \`\`\`file:path/to/file.ext format.`;
 
-  await handleUserQuery(debugPrompt, rl);
+    await handleUserQuery(debugPrompt, rl, true);
+    console.log(`\n${c.dim}🔄 Auto-re-executing '${cmd}' to verify patch...${c.reset}\n`);
+  }
 }
 
 const LOCAL_GATEWAY_URL = 'http://localhost:8080/v1/chat/completions';
 const CLOUD_GATEWAY_URL = 'https://venar-01.vercel.app/v1/chat/completions';
 
-async function callGateway(messages) {
+async function callGateway(messages, onChunk = null) {
   const userKeys = loadUserKeys();
   const headers = { 'Content-Type': 'application/json' };
   if (userKeys && Object.keys(userKeys).length > 0) {
@@ -508,12 +639,12 @@ async function callGateway(messages) {
     model: activeModel,
     mode: 'auto',
     max_tokens: 4096,
-    temperature: 0.2
+    temperature: 0.2,
+    stream: !!onChunk
   };
 
   let res = null;
 
-  // 1. If user set explicit custom gateway URL via env, use it
   if (process.env.VENAR_GATEWAY_URL) {
     res = await fetch(process.env.VENAR_GATEWAY_URL, {
       method: 'POST',
@@ -521,9 +652,6 @@ async function callGateway(messages) {
       body: JSON.stringify(payload)
     });
   } else {
-    // 2. Standalone Claude Code Experience:
-    // First try local gateway on 8080. If local server is not running,
-    // seamlessly auto-fallback to the high-speed VENAR Cloud Gateway!
     let probeTimer = null;
     try {
       const controller = new AbortController();
@@ -536,7 +664,6 @@ async function callGateway(messages) {
       });
       if (!res.ok) throw new Error(`Local gateway returned HTTP ${res.status}`);
     } catch (localErr) {
-      // Local server offline or busy -> Seamless Cloud Route (Zero user friction!)
       try {
         res = await fetch(CLOUD_GATEWAY_URL, {
           method: 'POST',
@@ -560,13 +687,203 @@ async function callGateway(messages) {
     throw new Error(errMsg);
   }
 
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  const provider = res.headers.get('x-venar-provider') || data.venar_telemetry?.provider || 'auto';
-  const model = res.headers.get('x-venar-model') || data.venar_telemetry?.model || activeModel;
-  const attempts = data.venar_telemetry?.attempts || [];
+  const provider = res.headers.get('x-venar-provider') || 'auto';
+  const model = res.headers.get('x-venar-model') || activeModel;
 
-  return { content, provider, model, attempts };
+  const contentType = res.headers.get('content-type') || '';
+  if (onChunk && contentType.includes('text/event-stream') && res.body && typeof res.body.getReader === 'function') {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        const tr = line.trim();
+        if (tr.startsWith('data: ') && !tr.includes('[DONE]')) {
+          try {
+            const parsed = JSON.parse(tr.slice(6));
+            const delta = parsed.choices?.[0]?.delta?.content || '';
+            if (delta) {
+              fullContent += delta;
+              onChunk(delta, { provider, model });
+            }
+          } catch(e) {}
+        }
+      }
+    }
+    return { content: fullContent, provider, model, attempts: [] };
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content || '';
+
+  if (onChunk && content) {
+    const words = content.split(/(\s+)/);
+    for (const w of words) {
+      onChunk(w, { provider, model });
+      await new Promise(r => setTimeout(r, 6));
+    }
+  }
+
+  return { content, provider, model, attempts: data.venar_telemetry?.attempts || [] };
+}
+
+// -----------------------------------------------------------------------------
+// 7. MULTI-TURN REACT AGENT TOOL-CALLING LOOP (Pillar 3)
+// -----------------------------------------------------------------------------
+async function runAutonomousAgent(task, rl) {
+  if (!task) {
+    console.log(`\n${c.yellow}Usage: /agent <task description>${c.reset}\n`);
+    return;
+  }
+
+  console.log(`\n${c.peachBold}🤖 ─── VENAR AUTONOMOUS AGENT ACTIVE ──────────────────────────────────${c.reset}`);
+  console.log(`${c.dim}Task: ${c.white}${task}${c.reset}\n`);
+
+  const agentSystemPrompt = `You are VENAR Autonomous Principal Software Engineer.
+Operating in workspace: "${CWD}".
+You have full authority and tools to investigate, read files, edit files, and execute terminal commands to achieve the user's task.
+
+TOOLS AVAILABLE:
+1. [TOOL: read_file("path/to/file.ext")] - Read content of a file
+2. [TOOL: write_file("path/to/file.ext", "full file content")] - Write/overwrite a file
+3. [TOOL: run_command("shell command")] - Execute a shell command (e.g. dir, npm test, node script.js)
+4. [TOOL: list_files(".")] - List directory tree
+5. [TOOL: grep_search("pattern")] - Search codebase for pattern
+
+FORMAT INSTRUCTIONS:
+To take an action, output:
+THOUGHT: your reasoning about what to do next.
+ACTION: [TOOL: tool_name(arguments)]
+
+When the entire task is completely finished and verified, output:
+FINAL: your summary of what was accomplished.
+
+RULES:
+- Always read existing files before editing them.
+- If you edit code, run commands to test/verify if applicable.
+- Only output ONE ACTION per turn.`;
+
+  const agentHistory = [
+    { role: 'system', content: agentSystemPrompt },
+    { role: 'user', content: `Task to accomplish: ${task}\n\nProject outline:\n${getSymbolOutline(CWD).slice(0, 1800)}` }
+  ];
+
+  const maxTurns = 10;
+  for (let turn = 1; turn <= maxTurns; turn++) {
+    console.log(`${c.peachDim}── Step ${turn}/${maxTurns} ──────────────────────────────────────────────────────────${c.reset}`);
+    process.stdout.write(`${c.peach}⏳ Agent thinking...${c.reset} `);
+
+    let response;
+    try {
+      response = await callGateway(agentHistory);
+    } catch (e) {
+      console.log(`\r${c.red}❌ Agent Gateway Error: ${e.message}${c.reset}\n`);
+      return;
+    }
+
+    process.stdout.write(`\r${c.green}✓ Responded via ${response.provider}/${response.model}:${c.reset}\n\n`);
+    console.log(response.content);
+    console.log();
+    agentHistory.push({ role: 'assistant', content: response.content });
+
+    if (response.content.includes('FINAL:') || response.content.startsWith('FINAL')) {
+      console.log(`\n${c.green}${c.bold}🎉 [AGENT FINISHED] Task accomplished in ${turn} step(s)!${c.reset}\n`);
+      return;
+    }
+
+    const toolMatch = response.content.match(/\[TOOL:\s*([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\)\]/);
+    if (!toolMatch) {
+      const fileBlocks = parseFileBlocks(response.content);
+      if (fileBlocks.length > 0) {
+        for (const fb of fileBlocks) {
+          saveUndoSnapshot(fb.file);
+          writeProjectFile(fb.file, fb.content);
+          console.log(`${c.green}✓ [Agent Auto-Write] Saved ${fb.file}${c.reset}`);
+        }
+        agentHistory.push({ role: 'user', content: 'OBSERVATION: Files written successfully. What is the next step or are we done?' });
+        continue;
+      }
+      console.log(`${c.dim}ℹ️ No tool action requested. Concluding agent loop.${c.reset}\n`);
+      return;
+    }
+
+    const toolName = toolMatch[1].trim();
+    const rawArgs = toolMatch[2].trim();
+    let observation = '';
+
+    console.log(`${c.cyan}${c.bold}⚡ Executing Tool: ${toolName}${c.reset}`);
+
+    try {
+      if (toolName === 'read_file') {
+        const filePath = rawArgs.replace(/^['"]|['"]$/g, '').trim();
+        const content = readFileContent(filePath);
+        if (content === null) {
+          observation = `Error: File '${filePath}' not found or cannot be read.`;
+        } else {
+          observation = `File Content of '${filePath}' (${content.length} bytes):\n${content.slice(0, 15000)}`;
+        }
+      } else if (toolName === 'write_file') {
+        const firstComma = rawArgs.indexOf(',');
+        if (firstComma === -1) {
+          observation = "Error: Invalid write_file syntax. Expected write_file(\"path\", \"content\")";
+        } else {
+          const filePath = rawArgs.slice(0, firstComma).replace(/^['"]|['"]$/g, '').trim();
+          let fileContent = rawArgs.slice(firstComma + 1).trim();
+          if (fileContent.startsWith('"') && fileContent.endsWith('"')) fileContent = fileContent.slice(1, -1);
+          if (fileContent.startsWith("'") && fileContent.endsWith("'")) fileContent = fileContent.slice(1, -1);
+          fileContent = fileContent.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"');
+
+          saveUndoSnapshot(filePath);
+          writeProjectFile(filePath, fileContent);
+          observation = `File '${filePath}' successfully written to disk (${fileContent.length} bytes).`;
+          console.log(`${c.green}✓ Saved ${filePath} to disk!${c.reset}`);
+        }
+      } else if (toolName === 'run_command') {
+        const cmd = rawArgs.replace(/^['"]|['"]$/g, '').trim();
+        console.log(`${c.dim}> Running: ${cmd}${c.reset}`);
+        try {
+          const out = execSync(cmd, { cwd: CWD, encoding: 'utf8', timeout: 30000, stdio: 'pipe' });
+          observation = `Command '${cmd}' succeeded with output:\n${out || '(empty output)'}`;
+        } catch (err) {
+          const out = (err.stdout ? err.stdout.toString() : '') + '\n' + (err.stderr ? err.stderr.toString() : err.message);
+          observation = `Command '${cmd}' failed with error:\n${out.trim()}`;
+        }
+      } else if (toolName === 'list_files') {
+        const tree = getDirectoryTree(CWD, 3);
+        observation = `Project directory tree:\n${tree.slice(0, 50).join('\n')}`;
+      } else if (toolName === 'grep_search') {
+        const pattern = rawArgs.replace(/^['"]|['"]$/g, '').trim();
+        const tree = getDirectoryTree(CWD, 3);
+        const matches = [];
+        for (const item of tree) {
+          if (item.startsWith('📁')) continue;
+          const cp = item.replace(/^[📄📁]\s*/u, '').trim();
+          const c = readFileContent(cp);
+          if (c && c.toLowerCase().includes(pattern.toLowerCase())) {
+            matches.push(`File: ${cp}`);
+          }
+        }
+        observation = matches.length > 0 ? `Matches for '${pattern}':\n${matches.join('\n')}` : `No matches found for '${pattern}'.`;
+      } else {
+        observation = `Error: Unknown tool '${toolName}'. Available tools: read_file, write_file, run_command, list_files, grep_search.`;
+      }
+    } catch (toolErr) {
+      observation = `Tool execution exception: ${toolErr.message}`;
+    }
+
+    console.log(`${c.dim}Observation: ${observation.slice(0, 150)}...${c.reset}\n`);
+    agentHistory.push({ role: 'user', content: `OBSERVATION:\n${observation}` });
+  }
+
+  console.log(`${c.yellow}⚠️ Reached max agent turns (${maxTurns}). Stopping.${c.reset}\n`);
 }
 
 function parseFileBlocks(text) {
@@ -582,14 +899,14 @@ function parseFileBlocks(text) {
   return matches;
 }
 
-async function handleUserQuery(input, rl) {
+async function handleUserQuery(input, rl, autoApply = false) {
   const query = input.trim();
   if (!query) return;
 
   if (query === '?' || query === '/help') {
     console.log(`
 ${c.peachBold}VENAR Code Shortcuts & Commands:${c.reset}
-  ${c.yellow}/model [1-6]${c.reset}     - Interactive model switcher (e.g. /model 2 for DeepSeek R1)
+  ${c.yellow}/agent <task>${c.reset}    - Autonomous multi-turn ReAct agent loop\n  ${c.yellow}/outline${c.reset}         - View full project symbol outline & skeleton\n  ${c.yellow}/model [1-6]${c.reset}     - Interactive model switcher (e.g. /model 2 for DeepSeek R1)
   ${c.yellow}/serve [stop]${c.reset}    - Launch instant live browser preview of current project
   ${c.yellow}/undo${c.reset}            - 1-Click safe rollback to revert the last code change
   ${c.yellow}/debug <cmd>${c.reset}     - Auto-execute command & autonomously self-heal errors
@@ -611,6 +928,20 @@ ${c.dim}Tips:
   • Edit:  "edit index.html to add a dark mode toggle"
   • Run:   "!git status" or "!npm test"
 ${c.reset}`);
+    return;
+  }
+
+  if (query === '/outline') {
+    const outline = getSymbolOutline(CWD);
+    console.log(`\n${c.peachBold}═══ PROJECT SYMBOL OUTLINE (${CWD}) ═══${c.reset}\n`);
+    console.log(outline || `${c.dim}No source symbols detected in this directory.${c.reset}`);
+    console.log();
+    return;
+  }
+
+  if (query.startsWith('/agent ') || query.startsWith('/do ')) {
+    const task = query.replace(/^\/(agent|do)\s+/, '').trim();
+    await runAutonomousAgent(task, rl);
     return;
   }
 
@@ -869,9 +1200,21 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
     }
   }
 
+  // Pillar 4: Keyword Search Relevance
+  if (mentionedFiles.length === 0) {
+    const relevantFiles = smartKeywordSearch(query, 2);
+    for (const rf of relevantFiles) {
+      mentionedFiles.push(rf);
+    }
+  }
+
+  // Pillar 4: Context injection with Symbol Outline
+  const outline = getSymbolOutline(CWD, 15);
   let promptWithContext = query;
   if (mentionedFiles.length > 0) {
-    promptWithContext += '\n\nContext Files in Workspace:\n' + mentionedFiles.map(f => `--- File: ${f.path} ---\n${f.content}\n--- End File ---`).join('\n');
+    promptWithContext += '\n\nContext Files in Workspace:\n' + mentionedFiles.map(f => `--- File: ${f.path} ---\n${f.content.slice(0, 10000)}\n--- End File ---`).join('\n');
+  } else if (outline) {
+    promptWithContext += '\n\nProject Symbol Outline:\n' + outline.slice(0, 4000);
   } else {
     promptWithContext += '\n\nCurrent Directory Tree:\n' + tree.slice(0, 30).join('\n');
   }
@@ -879,13 +1222,25 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
   conversationHistory.push({ role: 'user', content: promptWithContext });
   process.stdout.write(`\n${c.peach}⏳ Venar is thinking...${c.reset} `);
 
-  try {
-    const { content, provider, model } = await callGateway(conversationHistory);
-    process.stdout.write(`\r${c.green}✓ Responded via ${provider}/${model}:${c.reset}\n\n`);
+  let isFirstToken = true;
 
-    totalTokensUsed += Math.ceil(content.length / 4);
-    console.log(content);
+  try {
+    const { content, provider, model } = await callGateway(conversationHistory, (token, meta) => {
+      if (isFirstToken) {
+        isFirstToken = false;
+        const p = meta?.provider || 'cloud';
+        const m = meta?.model || activeModel;
+        process.stdout.write(`\r${c.green}✓ Responded via ${p}/${m}:${c.reset}\n\n`);
+      }
+      process.stdout.write(token);
+    });
+
+    if (isFirstToken) {
+      process.stdout.write(`\r${c.green}✓ Responded via ${provider}/${model}:${c.reset}\n\n`);
+      console.log(content);
+    }
     console.log();
+    totalTokensUsed += Math.ceil(content.length / 4);
     conversationHistory.push({ role: 'assistant', content });
 
     const fileBlocks = parseFileBlocks(content);
@@ -896,23 +1251,29 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
         renderDiff(existing, block.content, block.file);
         if (block.file.toLowerCase().endsWith('.html')) createdWebPage = true;
 
-        await new Promise((resolve) => {
-          rl.question(`${c.bold}${c.peach}Apply changes to '${block.file}'? (Y/n): ${c.reset}`, (answer) => {
-            const a = answer.trim().toLowerCase();
-            if (a === 'y' || a === '') {
-              try {
-                saveUndoSnapshot(block.file);
-                writeProjectFile(block.file, block.content);
-                console.log(`${c.green}✓ Saved ${block.file} to disk! ${c.dim}(Run '/undo' anytime to rollback)${c.reset}\n`);
-              } catch (err) {
-                console.log(`${c.red}❌ Error writing file: ${err.message}${c.reset}\n`);
+        if (autoApply) {
+          saveUndoSnapshot(block.file);
+          writeProjectFile(block.file, block.content);
+          console.log(`${c.green}✓ Saved ${block.file} to disk!${c.reset}\n`);
+        } else {
+          await new Promise((resolve) => {
+            rl.question(`${c.bold}${c.peach}Apply changes to '${block.file}'? (Y/n): ${c.reset}`, (answer) => {
+              const a = answer.trim().toLowerCase();
+              if (a === 'y' || a === '') {
+                try {
+                  saveUndoSnapshot(block.file);
+                  writeProjectFile(block.file, block.content);
+                  console.log(`${c.green}✓ Saved ${block.file} to disk! ${c.dim}(Run '/undo' anytime to rollback)${c.reset}\n`);
+                } catch (err) {
+                  console.log(`${c.red}❌ Error writing file: ${err.message}${c.reset}\n`);
+                }
+              } else {
+                console.log(`${c.dim}Skipped writing ${block.file}.${c.reset}\n`);
               }
-            } else {
-              console.log(`${c.dim}Skipped writing ${block.file}.${c.reset}\n`);
-            }
-            resolve();
+              resolve();
+            });
           });
-        });
+        }
       }
       if (createdWebPage) {
         console.log(`${c.cyan}💡 HTML project detected! Run ${c.bold}/serve${c.reset}${c.cyan} to open instant live browser preview.${c.reset}\n`);

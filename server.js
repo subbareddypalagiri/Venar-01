@@ -8,7 +8,8 @@ const { generateProject, listProjects, PROJECTS_DIR } = require('./agent-engine'
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.set('trust proxy', 1);
 
 // Serve frontend UI and local projects workspace
@@ -1349,6 +1350,28 @@ app.post('/v1/chat/completions', async (req, res) => {
         res.setHeader('X-Venar-Model', modelName);
         res.setHeader('X-Venar-Fallback-Chain', encodeURIComponent(JSON.stringify(attemptedRoutes)));
         if (c.isFallback) res.setHeader('X-Venar-Fallback', 'true');
+
+        if (req.body.stream) {
+          res.setHeader('Content-Type', 'text/event-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Connection', 'keep-alive');
+          const id = `chatcmpl-${Math.random().toString(36).substring(7)}`;
+          const chunks = responseText.split(/(\s+)/);
+          for (const chunk of chunks) {
+            if (chunk) {
+              const streamPayload = {
+                id,
+                object: 'chat.completion.chunk',
+                created: Math.floor(Date.now() / 1000),
+                model: `${provider}/${modelName}`,
+                choices: [{ index: 0, delta: { content: chunk }, finish_reason: null }]
+              };
+              res.write(`data: ${JSON.stringify(streamPayload)}\n\n`);
+            }
+          }
+          res.write('data: [DONE]\n\n');
+          return res.end();
+        }
 
         return res.json({
           id: `chatcmpl-${Math.random().toString(36).substring(7)}`,
