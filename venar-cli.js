@@ -922,9 +922,9 @@ ${c.peachBold}VENAR God-Tier AI Studio Commands:${c.reset}
   ${c.yellow}/checkpoint${c.reset}      - ⏱️ Create a time-machine snapshot
   ${c.yellow}/rewind${c.reset}          - ⏪ 1-Click rollback to previous snapshot
   ${c.yellow}/history${c.reset}         - 📜 View time-machine checkpoint timeline
-  ${c.yellow}/skills${c.reset}          - 🎨 30 World-Class Curated Skills (1-click download/cache)
-  ${c.yellow}/mcp${c.reset}             - 🔌 30 World-Class MCP Servers (~/.venar/mcp.json)
-  ${c.yellow}/connectors${c.reset}      - 🌐 30 Cloud Ecosystem Connectors (Supabase, Cloudflare, etc.)
+  ${c.yellow}/skills${c.reset}          - 🎨 50 World-Class Curated Skills (1-click download/cache)
+  ${c.yellow}/mcp${c.reset}             - 🔌 50 World-Class MCP Servers (~/.venar/mcp.json)
+  ${c.yellow}/connectors${c.reset}      - 🌐 50 Cloud Ecosystem Connectors (Supabase, Cloudflare, etc.)
   ${c.yellow}/agent <task>${c.reset}    - 🤖 Autonomous multi-turn ReAct agent loop
   ${c.yellow}/index${c.reset}           - ⚡ Sub-millisecond Vector & AST dependency index\n  ${c.yellow}/rag <query>${c.reset}     - 🎯 Okapi BM25 semantic chunk retrieval\n  ${c.yellow}/graph${c.reset}           - 🕸️ View codebase module dependency graph\n  ${c.yellow}/outline${c.reset}         - 🗺️ View full project symbol outline & skeleton
   ${c.yellow}/model [1-6]${c.reset}     - 🔄 Interactive model switcher (DeepSeek, Claude, Qwen)
