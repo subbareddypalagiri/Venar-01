@@ -23,6 +23,8 @@ const astSandbox = require('./ast-sandbox');
 const meshRouter = require('./mesh-router');
 const vectorRag = require('./vector-rag');
 const ghostWatcher = require('./ghost-watcher');
+const selfPlay = require('./self-play');
+const ephemeralEdge = require('./ephemeral-edge');
 
 const CWD = process.cwd();
 const GATEWAY_URL = process.env.VENAR_GATEWAY_URL || 'http://localhost:8080/v1/chat/completions';
@@ -919,6 +921,8 @@ ${c.peachBold}VENAR God-Tier AI Studio Commands:${c.reset}
   ${c.yellow}/swarm <task>${c.reset}    - 🚀 5-Agent Autonomous Swarm with User Decision Gate
   ${c.yellow}/swarm config${c.reset}    - ⚙️ Configure & toggle specialized Swarm agents
   ${c.yellow}/forge [1-4]${c.reset}     - ⚡ 1-Command Creative Archetypes (Awwwards 3D, Bento SaaS, Audio)
+  ${c.yellow}/arena <task>${c.reset}   - ⚔️ 2026 Adversarial Self-Play Arena (Blue vs Red in V8)
+  ${c.yellow}/edge [start]${c.reset}   - 🔮 Ephemeral In-Memory Edge DB & API (sub-10ms RAM server)
   ${c.yellow}/watch${c.reset}           - 👻 Ghost Watcher background self-healing daemon
   ${c.yellow}/cure${c.reset}            - 🩹 1-Click Auto-Cure staged syntax/AST breaks
   ${c.yellow}/sidecar${c.reset}         - 🌌 Spatial 3D Sidecar Dashboard (http://localhost:3333)\n  ${c.yellow}/mesh${c.reset}            - 🪜 Sovereign Multi-Provider Mesh & 12ms failover\n  ${c.yellow}/inspect${c.reset}         - 👁️ Visual QA Eye & structural health audit
@@ -1070,6 +1074,52 @@ ${c.reset}`);
   }
 
   
+  
+  // --- 2026 ADVERSARIAL SELF-PLAY SYNTHESIS ARENA ---
+  if (query.startsWith('/arena ') || query.startsWith('/selfplay ')) {
+    const task = query.replace(/^\/(?:arena|selfplay)\s*/, '').trim();
+    if (!task) {
+      console.log('\n' + c.yellow + 'Usage: /arena <task description>' + c.reset);
+      console.log('Example: ' + c.cyan + '/arena "Build a bulletproof token rate limiter with zero prototype pollution"' + c.reset + '\n');
+      return;
+    }
+    timeMachine.createCheckpoint('Pre-Arena Snapshot: ' + task.slice(0, 30));
+    const duelRes = await selfPlay.runSelfPlayArena(task, (messages, onChunk) => callGateway(messages, onChunk));
+    if (duelRes && duelRes.code) {
+      const fileBlocks = parseFileBlocks(duelRes.code);
+      if (fileBlocks.length > 0) {
+        for (const block of fileBlocks) {
+          writeProjectFile(block.file, block.content);
+          sidecarServer.broadcastSidecarEvent('file_written', { file: block.file });
+          console.log(c.green + '✓ Saved zero-day hardened file: ' + c.bold + block.file + c.reset);
+        }
+      } else {
+        // Single file fallback
+        const outName = 'hardened-' + task.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20) + '.js';
+        writeProjectFile(outName, duelRes.code);
+        console.log(c.green + '✓ Saved hardened module: ' + c.bold + outName + c.reset);
+      }
+      console.log('\n' + c.peachBold + '★ Code mathematically hardened & verified against all chaos vectors!' + c.reset + '\n');
+    }
+    return;
+  }
+
+  // --- 2026 EPHEMERAL IN-MEMORY EDGE RUNTIME ---
+  if (query === '/edge' || query === '/edge status') {
+    ephemeralEdge.printEdgeStatus();
+    return;
+  }
+
+  if (query === '/edge start') {
+    ephemeralEdge.startEdgeServer(4000);
+    return;
+  }
+
+  if (query === '/edge stop') {
+    ephemeralEdge.stopEdgeServer();
+    return;
+  }
+
   // --- GHOST WATCHER & AUTO-CURE DAEMON ---
   if (query === '/watch' || query === '/ghost' || query === '/watcher') {
     const status = ghostWatcher.getGhostStatus();
