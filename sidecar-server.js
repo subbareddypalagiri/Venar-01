@@ -1,12 +1,14 @@
 // ==============================================================================
 // VENAR SPATIAL SIDECAR ENGINE: Real-Time WebGL Dashboard & Terminal Mirror
-// Runs on port 3333, streams tokens via SSE, renders 3D Codebase Galaxy.
+// Runs on port 3333, streams tokens via SSE, renders 3D Codebase Galaxy & Swarm War Room.
+// Integrates Ghost Watcher background daemon with 1-click Auto-Cure API.
 // ==============================================================================
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
+const ghostWatcher = require('./ghost-watcher');
 
 let serverInstance = null;
 let activeClients = [];
@@ -22,23 +24,55 @@ function startSidecar(port = 3333, cwd = process.cwd(), autoOpen = true) {
   serverPort = port;
   projectDir = cwd;
 
+  // Auto-launch Ghost Watcher daemon in background
+  ghostWatcher.startGhostWatcher(projectDir, (type, payload) => {
+    broadcastSidecarEvent(type, payload);
+  });
+
   serverInstance = http.createServer((req, res) => {
     // 1. SSE Stream
     if (req.url === '/events') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
       });
       res.write('\n');
       activeClients.push(res);
+
+      // Send initial ghost status on connect
+      const status = ghostWatcher.getGhostStatus();
+      res.write('data: ' + JSON.stringify({ type: 'ghost_status', payload: status }) + '\n\n');
+
       req.on('close', () => {
         activeClients = activeClients.filter(c => c !== res);
       });
       return;
     }
 
-    // 2. Preview Content
+    // 2. Ghost Watcher REST APIs
+    if (req.url === '/api/ghost/status' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(ghostWatcher.getGhostStatus()));
+      return;
+    }
+
+    if (req.url === '/api/ghost/cure' && req.method === 'POST') {
+      const result = ghostWatcher.applyPendingCure();
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+
+    if (req.url === '/api/ghost/dismiss' && req.method === 'POST') {
+      const result = ghostWatcher.dismissPendingCure();
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ dismissed: result }));
+      return;
+    }
+
+    // 3. Preview Content
     if (req.url.startsWith('/preview-content')) {
       const indexPath = path.join(projectDir, 'index.html');
       if (fs.existsSync(indexPath)) {
@@ -51,7 +85,7 @@ function startSidecar(port = 3333, cwd = process.cwd(), autoOpen = true) {
       return;
     }
 
-    // 3. Static Files
+    // 4. Static Files
     const cleanUrl = req.url.split('?')[0].replace(/^\//, '');
     const localFilePath = path.join(projectDir, cleanUrl);
     if (cleanUrl && fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
@@ -69,7 +103,7 @@ function startSidecar(port = 3333, cwd = process.cwd(), autoOpen = true) {
       return;
     }
 
-    // 4. Default: Serve sidecar.html
+    // 5. Default: Serve sidecar.html
     const sidecarHtmlPath = path.join(__dirname, 'sidecar.html');
     if (fs.existsSync(sidecarHtmlPath)) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -84,7 +118,7 @@ function startSidecar(port = 3333, cwd = process.cwd(), autoOpen = true) {
     const url = 'http://localhost:' + serverPort;
     console.log('\n\x1b[1;38;2;224;108;85m★ VENAR SPATIAL SIDECAR ONLINE\x1b[0m');
     console.log('  \x1b[32m✓ Dashboard Live at: \x1b[1m' + url + '\x1b[0m');
-    console.log('  \x1b[2mReal-time 3D Galaxy + Visual Diff + Terminal Mirror active.\x1b[0m\n');
+    console.log('  \x1b[2mReal-time 3D Galaxy + Swarm War Room + Ghost Auto-Cure active.\x1b[0m\n');
 
     if (autoOpen) {
       const openCmd = process.platform === 'win32' ? ('start ' + url) : (process.platform === 'darwin' ? ('open ' + url) : ('xdg-open ' + url));
@@ -104,6 +138,7 @@ function broadcastSidecarEvent(type, payload) {
 }
 
 function stopSidecar() {
+  ghostWatcher.stopGhostWatcher();
   if (serverInstance) {
     serverInstance.close();
     serverInstance = null;

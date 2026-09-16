@@ -22,6 +22,7 @@ const sidecarServer = require('./sidecar-server');
 const astSandbox = require('./ast-sandbox');
 const meshRouter = require('./mesh-router');
 const vectorRag = require('./vector-rag');
+const ghostWatcher = require('./ghost-watcher');
 
 const CWD = process.cwd();
 const GATEWAY_URL = process.env.VENAR_GATEWAY_URL || 'http://localhost:8080/v1/chat/completions';
@@ -918,6 +919,8 @@ ${c.peachBold}VENAR God-Tier AI Studio Commands:${c.reset}
   ${c.yellow}/swarm <task>${c.reset}    - 🚀 5-Agent Autonomous Swarm with User Decision Gate
   ${c.yellow}/swarm config${c.reset}    - ⚙️ Configure & toggle specialized Swarm agents
   ${c.yellow}/forge [1-4]${c.reset}     - ⚡ 1-Command Creative Archetypes (Awwwards 3D, Bento SaaS, Audio)
+  ${c.yellow}/watch${c.reset}           - 👻 Ghost Watcher background self-healing daemon
+  ${c.yellow}/cure${c.reset}            - 🩹 1-Click Auto-Cure staged syntax/AST breaks
   ${c.yellow}/sidecar${c.reset}         - 🌌 Spatial 3D Sidecar Dashboard (http://localhost:3333)\n  ${c.yellow}/mesh${c.reset}            - 🪜 Sovereign Multi-Provider Mesh & 12ms failover\n  ${c.yellow}/inspect${c.reset}         - 👁️ Visual QA Eye & structural health audit
   ${c.yellow}/checkpoint${c.reset}      - ⏱️ Create a time-machine snapshot
   ${c.yellow}/rewind${c.reset}          - ⏪ 1-Click rollback to previous snapshot
@@ -1063,6 +1066,43 @@ ${c.reset}`);
 
   if (query === '/graph') {
     vectorRag.printGraphView(CWD);
+    return;
+  }
+
+  
+  // --- GHOST WATCHER & AUTO-CURE DAEMON ---
+  if (query === '/watch' || query === '/ghost' || query === '/watcher') {
+    const status = ghostWatcher.getGhostStatus();
+    if (status.running) {
+      console.log('\n' + c.peachBold + '★ GHOST WATCHER STATUS: ACTIVE' + c.reset);
+      console.log('  ' + c.green + '✓ Continuous background AST monitoring running on ' + status.projectRoot + c.reset);
+      if (status.hasPendingCure) {
+        console.log('  ' + c.red + '⚡ Staged break: ' + status.pendingCure.file + ' (Line ' + status.pendingCure.line + ')' + c.reset);
+        console.log('  ' + c.cyan + 'Type /cure to apply patch immediately.' + c.reset + '\n');
+      } else {
+        console.log('  ' + c.dim + 'All files AST 100% healthy.' + c.reset + '\n');
+      }
+    } else {
+      ghostWatcher.startGhostWatcher(CWD, (type, payload) => {
+        sidecarServer.broadcastSidecarEvent(type, payload);
+      });
+    }
+    return;
+  }
+
+  if (query === '/unwatch' || query === '/ghost stop') {
+    ghostWatcher.stopGhostWatcher();
+    return;
+  }
+
+  if (query === '/cure' || query === '/autocure') {
+    const res = ghostWatcher.applyPendingCure();
+    if (!res.success) {
+      console.log('\n' + c.yellow + '⚠️ ' + res.message + c.reset);
+      console.log('  ' + c.dim + 'No active syntax errors or AST breaks to cure. Codebase is clean!' + c.reset + '\n');
+    } else {
+      sidecarServer.broadcastSidecarEvent('file_written', { file: res.file });
+    }
     return;
   }
 

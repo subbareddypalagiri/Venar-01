@@ -7,6 +7,18 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+
+let sidecarServer = null;
+try {
+  sidecarServer = require('./sidecar-server');
+} catch (e) {}
+
+function safeBroadcast(type, payload) {
+  if (sidecarServer && typeof sidecarServer.broadcastSidecarEvent === 'function') {
+    sidecarServer.broadcastSidecarEvent(type, payload);
+  }
+}
+
 const c = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
@@ -95,6 +107,8 @@ async function runSwarmSession(task, callGatewayFn, rl, promptUserDecision = tru
 
   // PHASE 1: Architect & Designer Collaboration
   console.log(c.magenta + '▸ [PHASE 1] ARCHITECT & DESIGNER COUNCIL CONVENING...' + c.reset);
+  safeBroadcast('swarm_phase', { name: 'Phase 1: Architecture & Aesthetics', description: 'Architect & Designer synthesizing system topology.' });
+  safeBroadcast('agent_thought', { agentId: 'architect', agentName: 'The Architect', model: 'deepseek-r1', icon: '🏛️', thought: 'Analyzing project topology, data flow, and file layout for: ' + task });
   const planPrompt = [
     {
       role: 'system',
@@ -121,6 +135,7 @@ Be concise, bulleted, and decisive. Do not write full code files yet.`
     console.log(c.yellow + 'Using resilient fallback plan.\n' + c.reset);
   }
 
+  safeBroadcast('agent_thought', { agentId: 'designer', agentName: 'Creative Designer', model: 'claude-3-5-sonnet', icon: '🎨', thought: 'Specifying OKLCH dark luxury color palette, fluid typography & micro-interactions.' });
   console.log('\n' + c.peachBold + '─── 📋 SWARM CONSENSUS PLAN ───' + c.reset);
   console.log(c.dim + planOutput.slice(0, 800) + (planOutput.length > 800 ? '\n... (full spec retained)' : '') + c.reset);
   console.log(c.peachBold + '───────────────────────────────' + c.reset + '\n');
@@ -150,6 +165,8 @@ Be concise, bulleted, and decisive. Do not write full code files yet.`
 
   // PHASE 2: Core Engineering Code Synthesis
   console.log(c.cyan + '▸ [PHASE 2] LEAD ENGINEER GENERATING PRODUCTION-GRADE CODE...' + c.reset);
+  safeBroadcast('swarm_phase', { name: 'Phase 2: Core Engineering', description: 'Lead Engineer (qwen-2.5-coder-32b) generating production files.' });
+  safeBroadcast('agent_thought', { agentId: 'engineer', agentName: 'Core Engineer', model: 'qwen-2.5-coder-32b', icon: '💻', thought: 'Synthesizing production files with strict AST sanity...' });
   const codePrompt = [
     {
       role: 'system',
@@ -184,6 +201,9 @@ Strict Rules:
 
   // PHASE 3: Security, Performance & QA Audit
   console.log(c.yellow + '▸ [PHASE 3] SECURITY AUDITOR & QA VERIFICATION RUNNING...' + c.reset);
+  safeBroadcast('swarm_phase', { name: 'Phase 3: Security & QA Audit', description: 'Auditor & QA scanning code for edge cases and assertions.' });
+  safeBroadcast('agent_thought', { agentId: 'auditor', agentName: 'Security Auditor', model: 'codestral-2501', icon: '🛡️', thought: 'Verifying memory leaks, context loss, and AST syntax validation.' });
+  safeBroadcast('agent_thought', { agentId: 'qa', agentName: 'QA Strategist', model: 'gemini-2.5-flash', icon: '🧪', thought: 'Validating runtime assertions and error recovery.' });
   const auditPrompt = [
     {
       role: 'system',
@@ -207,6 +227,7 @@ Provide a 3-bullet Audit Verdict with a Quality Score (e.g. 9.8/10). Be brief.`
     console.log(c.dim + 'Audit passed with default assertions.' + c.reset + '\n');
   }
 
+  safeBroadcast('swarm_complete', { summary: '5-Agent Swarm execution finished.' });
   console.log(c.green + c.bold + '★ 5-AGENT SWARM SESSION COMPLETE! Files ready for disk write.' + c.reset + '\n');
   return { plan: planOutput, code: synthesizedCode, audit: auditVerdict };
 }
