@@ -154,19 +154,42 @@ ${c.peachDim}──────────────────────�
 `);
 }
 
-function getDirectoryTree(dir, maxDepth = 2, currentDepth = 0) {
-  if (currentDepth > maxDepth) return [];
+const CLI_IGNORED_DIRS = new Set([
+  'node_modules', '.git', '.next', 'dist', 'build', '.cache', '.npm',
+  '.vscode', '.gemini', '.cursor', '.gradle', 'appdata', 'onedrive',
+  'downloads', 'documents', 'pictures', 'music', 'videos', '.venar_history',
+  '.venar_cache', '.venar_shadow_worktree', '$recycle.bin', 'system volume information'
+]);
+
+function isHomeOrRootDir(dir = CWD) {
+  try {
+    const resolved = path.resolve(dir);
+    return resolved === path.resolve(os.homedir()) || resolved === path.resolve(path.parse(resolved).root);
+  } catch (e) {
+    return false;
+  }
+}
+
+function getDirectoryTree(dir = CWD, maxDepth = 2, currentDepth = 0, state = { count: 0 }, maxItems = 80) {
+  if (currentDepth > maxDepth || state.count >= maxItems) return [];
   const results = [];
   try {
     const items = fs.readdirSync(dir, { withFileTypes: true });
     for (const item of items) {
-      if (['node_modules', '.git', '.next', 'dist', 'build', '.cache'].includes(item.name)) continue;
-      const relPath = path.relative(CWD, path.join(dir, item.name));
+      if (state.count >= maxItems) break;
+      const lower = item.name.toLowerCase();
+      if (item.name.startsWith('.') || CLI_IGNORED_DIRS.has(lower)) continue;
+
+      const relPath = path.relative(CWD, path.join(dir, item.name)).replace(/\\/g, '/');
       if (item.isDirectory()) {
         results.push(`📁 ${relPath}/`);
-        results.push(...getDirectoryTree(path.join(dir, item.name), maxDepth, currentDepth + 1));
+        state.count++;
+        if (!isHomeOrRootDir(CWD)) {
+          results.push(...getDirectoryTree(path.join(dir, item.name), maxDepth, currentDepth + 1, state, maxItems));
+        }
       } else {
         results.push(`📄 ${relPath}`);
+        state.count++;
       }
     }
   } catch (e) {}
@@ -174,11 +197,15 @@ function getDirectoryTree(dir, maxDepth = 2, currentDepth = 0) {
 }
 
 function readFileContent(relPath) {
-  const fullPath = path.resolve(CWD, relPath);
-  if (!fullPath.startsWith(CWD)) return null;
-  if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
-    return fs.readFileSync(fullPath, 'utf8');
-  }
+  try {
+    const fullPath = path.resolve(CWD, relPath);
+    if (!fullPath.startsWith(CWD)) return null;
+    if (fs.existsSync(fullPath)) {
+      const stats = fs.statSync(fullPath);
+      if (!stats.isFile() || stats.size > 200 * 1024) return null;
+      return fs.readFileSync(fullPath, 'utf8');
+    }
+  } catch (e) {}
   return null;
 }
 
@@ -384,8 +411,13 @@ function handleGrep(query) {
     console.log(`\n${c.yellow}Usage: /grep <search-term>${c.reset}\n`);
     return;
   }
+  if (isHomeOrRootDir(CWD)) {
+    console.log(`\n${c.yellow}⚠️ [NOTICE] /grep is restricted in the home directory (${CWD}) to protect system resources.${c.reset}`);
+    console.log(`  ${c.dim}Navigate into a specific project folder to grep files.${c.reset}\n`);
+    return;
+  }
   console.log(`\n${c.peachBold}Searching for "${query}" across project files...${c.reset}\n`);
-  const tree = getDirectoryTree(CWD, 4);
+  const tree = getDirectoryTree(CWD, 3);
   let totalMatches = 0;
 
   for (const item of tree) {
@@ -427,8 +459,13 @@ function handleFind(pattern) {
     console.log(`\n${c.yellow}Usage: /find <pattern>${c.reset} (e.g. /find *.css or /find player)\n`);
     return;
   }
+  if (isHomeOrRootDir(CWD)) {
+    console.log(`\n${c.yellow}⚠️ [NOTICE] /find is restricted in the home directory (${CWD}) to protect system resources.${c.reset}`);
+    console.log(`  ${c.dim}Navigate into a specific project folder to search files.${c.reset}\n`);
+    return;
+  }
   const cleanPat = pattern.toLowerCase().replace(/^\*/, '');
-  const tree = getDirectoryTree(CWD, 4);
+  const tree = getDirectoryTree(CWD, 3);
   const matched = [];
   for (const item of tree) {
     const cleanPath = item.replace(/^[📄📁]\s*/u, '').trim();
@@ -448,8 +485,9 @@ function handleFind(pattern) {
 // -----------------------------------------------------------------------------
 // 4.5. SMART CODEBASE SYMBOL OUTLINE & RELEVANCE SEARCH (Pillar 4)
 // -----------------------------------------------------------------------------
-function getSymbolOutline(dir = CWD, maxFiles = 40) {
-  const tree = getDirectoryTree(dir, 3);
+function getSymbolOutline(dir = CWD, maxFiles = 20) {
+  if (isHomeOrRootDir(dir)) return '';
+  const tree = getDirectoryTree(dir, 2);
   const outlines = [];
   let fileCount = 0;
 
@@ -462,7 +500,7 @@ function getSymbolOutline(dir = CWD, maxFiles = 40) {
     if (!['.js', '.mjs', '.cjs', '.ts', '.jsx', '.tsx', '.py', '.html', '.json'].includes(ext)) continue;
 
     const content = readFileContent(cleanPath);
-    if (!content || content.length > 80000) continue;
+    if (!content || content.length > 50000) continue;
 
     const symbols = [];
     const lines = content.split('\n');
@@ -515,6 +553,7 @@ function getSymbolOutline(dir = CWD, maxFiles = 40) {
 }
 
 function smartKeywordSearch(query, maxFiles = 2) {
+  if (isHomeOrRootDir(CWD)) return [];
   const stopWords = new Set([
     'the', 'and', 'for', 'with', 'this', 'that', 'from', 'what', 'how', 'when',
     'code', 'file', 'files', 'create', 'make', 'update', 'edit', 'please', 'help',
@@ -528,10 +567,12 @@ function smartKeywordSearch(query, maxFiles = 2) {
 
   if (words.length === 0) return [];
 
-  const tree = getDirectoryTree(CWD, 3);
+  const tree = getDirectoryTree(CWD, 2);
   const scores = [];
+  let evaluated = 0;
 
   for (const item of tree) {
+    if (evaluated++ >= 30) break;
     if (item.startsWith('📁')) continue;
     const cleanPath = item.replace(/^[📄📁]\s*/u, '').trim();
     const content = readFileContent(cleanPath);
@@ -1055,8 +1096,17 @@ ${c.reset}`);
   
   // --- LOCAL VECTOR GRAPH RAG ENGINE ---
   if (query === '/index' || query === '/rag index') {
+    if (isHomeOrRootDir(CWD)) {
+      console.log(`\n${c.yellow}⚠️ [NOTICE] Vector indexing disabled in home directory (${CWD}) to protect system memory.${c.reset}`);
+      console.log(`  ${c.dim}Please navigate into a specific project repository to run /index.${c.reset}\n`);
+      return;
+    }
     console.log('\n' + c.peachBold + 'Building Local Vector & Dependency Graph Index...' + c.reset);
     const stats = vectorRag.buildOrUpdateIndex(CWD, true);
+    if (stats.skippedHome) {
+      console.log(`\n${c.yellow}⚠️ [NOTICE] Indexing skipped in home directory to protect system memory.${c.reset}\n`);
+      return;
+    }
     console.log(c.green + '✓ Vector Index Complete in ' + stats.timeMs + 'ms!' + c.reset);
     console.log('  ' + c.dim + 'Indexed: ' + c.bold + stats.totalFiles + ' files' + c.reset + c.dim + ' · ' + c.bold + stats.totalChunks + ' semantic chunks' + c.reset + '\n');
     return;
@@ -1513,34 +1563,36 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
   // -----------------------------------------------------------------------------
   // AI Query Handling: Context Assembly, Gateway Call & Diff Prompt
   // -----------------------------------------------------------------------------
-  const tree = getDirectoryTree(CWD);
+  const tree = isHomeOrRootDir(CWD) ? [] : getDirectoryTree(CWD);
   const mentionedFiles = [];
-  for (const item of tree) {
-    const cleanPath = item.replace(/^[📄📁]\s*/u, '').trim();
-    if (query.toLowerCase().includes(path.basename(cleanPath).toLowerCase())) {
-      const content = readFileContent(cleanPath);
-      if (content && content.length < 50000) {
-        mentionedFiles.push({ path: cleanPath, content });
+  if (!isHomeOrRootDir(CWD)) {
+    for (const item of tree) {
+      const cleanPath = item.replace(/^[📄📁]\s*/u, '').trim();
+      if (query.toLowerCase().includes(path.basename(cleanPath).toLowerCase())) {
+        const content = readFileContent(cleanPath);
+        if (content && content.length < 50000) {
+          mentionedFiles.push({ path: cleanPath, content });
+        }
+      }
+    }
+
+    // Pillar 4: Keyword Search Relevance
+    if (mentionedFiles.length === 0) {
+      const relevantFiles = smartKeywordSearch(query, 2);
+      for (const rf of relevantFiles) {
+        mentionedFiles.push(rf);
       }
     }
   }
 
-  // Pillar 4: Keyword Search Relevance
-  if (mentionedFiles.length === 0) {
-    const relevantFiles = smartKeywordSearch(query, 2);
-    for (const rf of relevantFiles) {
-      mentionedFiles.push(rf);
-    }
-  }
-
   // Pillar 4: Context injection with Symbol Outline
-  const outline = getSymbolOutline(CWD, 15);
+  const outline = isHomeOrRootDir(CWD) ? '' : getSymbolOutline(CWD, 15);
   let promptWithContext = query;
   if (mentionedFiles.length > 0) {
     promptWithContext += '\n\nContext Files in Workspace:\n' + mentionedFiles.map(f => `--- File: ${f.path} ---\n${f.content.slice(0, 10000)}\n--- End File ---`).join('\n');
   } else if (outline) {
     promptWithContext += '\n\nProject Symbol Outline:\n' + outline.slice(0, 4000);
-  } else {
+  } else if (tree.length > 0) {
     promptWithContext += '\n\nCurrent Directory Tree:\n' + tree.slice(0, 30).join('\n');
   }
 
@@ -1551,10 +1603,8 @@ ${c.peachBold}⚡ VENAR Token Consumption Telemetry:${c.reset}
     }
   }
 
-
-  
   // Inject semantic RAG chunks from Vector Engine
-  const ragChunks = vectorRag.queryVectorRag(query, 3, CWD);
+  const ragChunks = isHomeOrRootDir(CWD) ? [] : vectorRag.queryVectorRag(query, 3, CWD);
   if (ragChunks.length > 0) {
     promptWithContext += '\n\nRelevant Semantic Code Chunks (Vector RAG):\n' +
       ragChunks.map(chk => `--- ${chk.file} (L${chk.startLine}-L${chk.endLine} · ${chk.name}) ---\n${chk.content}\n--- End Chunk ---`).join('\n');

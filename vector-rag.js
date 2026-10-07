@@ -6,6 +6,27 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+
+const IGNORED_DIR_NAMES = new Set([
+  'node_modules', 'dist', 'build', '.git', '.cache', '.npm', '.vscode',
+  '.gemini', '.cursor', '.gradle', 'appdata', 'onedrive', 'downloads',
+  'documents', 'pictures', 'music', 'videos', '.venar_history', '.venar_cache',
+  '.venar_shadow_worktree', '$recycle.bin', 'system volume information'
+]);
+
+const MAX_INDEXED_FILES = 200;
+const MAX_FILE_SIZE = 100 * 1024; // 100 KB max per file
+const MAX_DEPTH = 3;
+
+function isHomeOrRootDir(dir) {
+  try {
+    const resolved = path.resolve(dir);
+    return resolved === path.resolve(os.homedir()) || resolved === path.resolve(path.parse(resolved).root);
+  } catch (e) {
+    return false;
+  }
+}
 
 const c = {
   reset: "\x1b[0m",
@@ -182,6 +203,18 @@ function extractDependencies(filePath, content) {
  */
 function buildOrUpdateIndex(cwd = process.cwd(), forceRebuild = false) {
   const indexPath = getIndexPath(cwd);
+
+  if (isHomeOrRootDir(cwd)) {
+    return {
+      totalFiles: 0,
+      reindexedFiles: 0,
+      totalChunks: 0,
+      timeMs: 0,
+      indexPath,
+      skippedHome: true
+    };
+  }
+
   let index = { files: {}, chunks: [], dependencyGraph: {}, lastUpdated: 0 };
 
   if (!forceRebuild && fs.existsSync(indexPath)) {
@@ -193,23 +226,36 @@ function buildOrUpdateIndex(cwd = process.cwd(), forceRebuild = false) {
   const allChunks = [];
   const depGraph = {};
   let reindexedCount = 0;
+  let fileCount = 0;
 
-  // Walk files up to 3 levels deep
-  function walk(dir) {
-    const items = fs.readdirSync(dir, { withFileTypes: true });
+  // Walk files up to MAX_DEPTH levels deep with strict file count & directory filters
+  function walk(dir, depth = 0) {
+    if (depth > MAX_DEPTH || fileCount >= MAX_INDEXED_FILES) return;
+    let items = [];
+    try {
+      items = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      return;
+    }
+
     for (const item of items) {
-      if (item.name.startsWith('.') || item.name === 'node_modules' || item.name === 'dist' || item.name === 'build') continue;
+      if (fileCount >= MAX_INDEXED_FILES) break;
+      const lowerName = item.name.toLowerCase();
+      if (item.name.startsWith('.') || IGNORED_DIR_NAMES.has(lowerName)) continue;
       const fullPath = path.join(dir, item.name);
       const relPath = path.relative(cwd, fullPath).replace(/\\/g, '/');
 
       if (item.isDirectory()) {
-        walk(fullPath);
+        walk(fullPath, depth + 1);
       } else if (item.isFile()) {
         const ext = path.extname(item.name).toLowerCase();
         if (!['.js', '.mjs', '.cjs', '.ts', '.jsx', '.tsx', '.html', '.css', '.json', '.py', '.md'].includes(ext)) continue;
 
         try {
           const stats = fs.statSync(fullPath);
+          if (stats.size > MAX_FILE_SIZE) continue;
+
+          fileCount++;
           const cachedMtime = index.files[relPath]?.mtime;
 
           let fileChunks = [];
@@ -240,13 +286,15 @@ function buildOrUpdateIndex(cwd = process.cwd(), forceRebuild = false) {
   }
 
   const startTime = Date.now();
-  walk(cwd);
+  walk(cwd, 0);
 
   index.chunks = allChunks;
   index.dependencyGraph = depGraph;
   index.lastUpdated = Date.now();
 
-  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf8');
+  try {
+    fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf8');
+  } catch (e) {}
   const elapsed = Date.now() - startTime;
 
   return {
@@ -262,6 +310,9 @@ function buildOrUpdateIndex(cwd = process.cwd(), forceRebuild = false) {
  * Okapi BM25 + Vector Cosine Similarity Search
  */
 function queryVectorRag(query, maxResults = 4, cwd = process.cwd()) {
+  if (isHomeOrRootDir(cwd)) {
+    return [];
+  }
   const indexPath = getIndexPath(cwd);
   if (!fs.existsSync(indexPath)) {
     buildOrUpdateIndex(cwd);

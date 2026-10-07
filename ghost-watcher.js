@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const vm = require('vm');
 const astSandbox = require('./ast-sandbox');
 
@@ -30,8 +31,21 @@ let eventCallback = null;
 let debounceTimers = {};
 let lastErrorState = null;
 
-const IGNORED_DIRS = ['node_modules', '.git', '.venar_history', '.venar_cache', '.venar_shadow_worktree'];
+const IGNORED_DIRS = [
+  'node_modules', '.git', '.venar_history', '.venar_cache', '.venar_shadow_worktree',
+  'appdata', 'onedrive', 'downloads', 'documents', 'pictures', 'music', 'videos',
+  '.cache', '.npm', '.vscode', '.gemini', '.cursor', '.gradle', '$recycle.bin'
+];
 const WATCHED_EXTS = ['.js', '.mjs', '.cjs', '.ts', '.html', '.htm', '.json', '.css'];
+
+function isHomeOrRootDir(dir) {
+  try {
+    const resolved = path.resolve(dir);
+    return resolved === path.resolve(os.homedir()) || resolved === path.resolve(path.parse(resolved).root);
+  } catch (e) {
+    return false;
+  }
+}
 
 /**
  * Starts the Ghost Watcher daemon.
@@ -39,6 +53,12 @@ const WATCHED_EXTS = ['.js', '.mjs', '.cjs', '.ts', '.html', '.htm', '.json', '.
 function startGhostWatcher(cwd = process.cwd(), onEvent = null) {
   if (isRunning) {
     return { status: 'already_running', path: projectRoot };
+  }
+
+  if (isHomeOrRootDir(cwd)) {
+    console.log(`\n${c.yellow}⚠️ [GHOST WATCHER NOTICE] Recursive file monitoring disabled in home directory (${cwd}) to protect system resources.${c.reset}`);
+    console.log(`  ${c.dim}Navigate into a specific project directory to activate Ghost Watcher.${c.reset}\n`);
+    return { status: 'disabled_in_home_dir', path: cwd };
   }
 
   projectRoot = cwd;
@@ -50,9 +70,9 @@ function startGhostWatcher(cwd = process.cwd(), onEvent = null) {
       if (!filename) return;
 
       // Filter out ignored dirs
-      const normalized = filename.replace(/\\/g, '/');
+      const normalized = filename.replace(/\\/g, '/').toLowerCase();
       for (const ignored of IGNORED_DIRS) {
-        if (normalized.startsWith(ignored + '/') || normalized === ignored) return;
+        if (normalized.startsWith(ignored + '/') || normalized === ignored || normalized.includes('/' + ignored + '/')) return;
       }
 
       const ext = path.extname(filename).toLowerCase();
